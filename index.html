@@ -475,7 +475,7 @@ const naiveMemo={};
 function naive(id){
   if(naiveMemo[id]) return naiveMemo[id];
   const s=new Set([id]), n=M[id];
-  if(n) [...groups(n),...(n.rec||[])].forEach(g=>{
+  if(n) groups(n).forEach(g=>{
     let best=null; g.filter(a=>M[a]).forEach(a=>{const c=naive(a);if(!best||c.size<best.size)best=c});
     if(best) best.forEach(x=>s.add(x));
   });
@@ -485,7 +485,7 @@ function close(seed){
   const S=new Set(seed), added=[], stack=[...seed];
   while(stack.length){
     const n=M[stack.pop()]; if(!n) continue;
-    [...groups(n),...(n.rec||[])].forEach(g=>{
+    groups(n).forEach(g=>{
       if(g.some(a=>S.has(a))) return;
       let best=null,bc=1e9;
       g.filter(a=>M[a]).forEach(a=>{const c=[...naive(a)].filter(x=>!S.has(x)).length;if(c<bc){bc=c;best=a}});
@@ -767,7 +767,7 @@ function layersOf(S){
   const lv=x=>{
     if(x in L) return L[x];
     const n=M[x]; L[x]=0; let d=0;
-    [...(n.p||[]),...(n.rec||[])].forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
+    (n.p||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
     (n.c||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,Math.min(...v))});
     if(n.two){const v=[...S].filter(a=>a!==x&&isAdv(a)&&a!=="18.090").map(lv).sort((a,b)=>a-b);if(v.length>=2)d=Math.max(d,v[1]+1)}
     return L[x]=d;
