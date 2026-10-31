@@ -140,6 +140,7 @@ button:hover{border-color:var(--muted)}
 body.mapfull{overflow:hidden}
 .zoom button{padding:3px 10px;font-family:var(--f-mono);font-size:13px}
 .zoom #zsort,.zoom #ziso,.zoom #zfull{font-family:var(--f-sans)} .zoom #zsort[aria-pressed="true"]{border-color:var(--hl);color:var(--hl)}
+.band{fill:var(--fg);fill-opacity:.035}
 .rowlab{font-family:var(--f-mono);font-size:12px;fill:var(--muted)}
 svg{display:block}
 .edge{fill:none;stroke:var(--line);stroke-width:1}
@@ -772,16 +773,30 @@ function layersOf(S){
     if(x in L) return L[x];
     const n=M[x]; L[x]=0; let d=0;
     [...(n.p||[]),...(n.rec||[])].forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
-    (n.c||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
+    (n.c||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,Math.min(...v))});
     if(n.two){const v=[...S].filter(a=>a!==x&&isAdv(a)&&a!=="18.090").map(lv).sort((a,b)=>a-b);if(v.length>=2)d=Math.max(d,v[1]+1)}
     return L[x]=d;
   };
   S.forEach(lv); return L;
 }
+let VR=null, STEPS=[];
+function lines(L){
+  const sub={}, sb=x=>{
+    if(x in sub) return sub[x]; sub[x]=0; let d=0;
+    (M[x].c||[]).forEach(g=>g.forEach(a=>{if(a in L&&L[a]===L[x]) d=Math.max(d,1+sb(a))}));
+    return sub[x]=d;
+  };
+  Object.keys(L).forEach(sb);
+  const n=Math.max(...Object.values(L))+1, height=Array(n).fill(1);
+  Object.keys(L).forEach(x=>height[L[x]]=Math.max(height[L[x]],sub[x]+1));
+  let top=0; STEPS=height.map(h=>{const t={top,h};top+=h;return t});
+  const V={}; Object.keys(L).forEach(x=>V[x]=STEPS[L[x]].top+sub[x]); return V;
+}
 function relayout(){
   const iso=isolate&&highlight.size?new Set([...highlight].filter(x=>M[x])):null;
   LV=sortFor?layers(sortFor):iso?layersOf(iso):null;
-  const rows={}; N.forEach(n=>{const r=LV?LV[n.id]:depth(n.id);if(r===undefined)return;(rows[r]=rows[r]||[]).push(n)});
+  VR=LV?lines(LV):null;
+  const rows={}; N.forEach(n=>{const r=VR?VR[n.id]:depth(n.id);if(r===undefined)return;(rows[r]=rows[r]||[]).push(n)});
   const R=Object.keys(rows).map(Number).sort((a,b)=>a-b);
   const span=LV?Math.max(700,Math.max(...R.map(r=>rows[r].length))*GAP*1.4):SPAN;
   POS={};
@@ -815,7 +830,7 @@ function drawMap(){
   let e="",g="";
   N.forEach(n=>{[[n.p,false],[n.c,true],[n.rec,false,true]].forEach(([gs,co,rc])=>(gs||[]).forEach(gr=>gr.forEach(a=>{
     if(!POS[a]||!POS[n.id]) return;
-    if(LV&&LV[a]>=LV[n.id]) return;
+    if(LV&&(co?LV[a]>LV[n.id]:LV[a]>=LV[n.id])) return;
     const [x1,y1]=POS[a],[x2,y2]=POS[n.id],my=(y1+y2)/2+11;
     const on=any&&H1.has(a)&&H1.has(n.id);
     const cls=`edge${co?" co":""}${rc?" rec":""}${on?" on":any?" off":""}`;
@@ -838,10 +853,12 @@ function drawMap(){
     <path class="axisl" d="M${W-PADX-250},${ay-7} H${W-PADX-130} m-8,-4 l8,4 l-8,4"/><text class="axis" x="${W-PADX+40}" y="${ay}" text-anchor="end">theoretical</text>`;
   svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
   applyZoom();
-  let labs="";
+  let labs="", bands="";
   if(LV){const cnt={};Object.values(LV).forEach(r=>cnt[r]=(cnt[r]||0)+1);
-    Object.keys(cnt).map(Number).forEach(r=>labs+=`<text class="rowlab" x="12" y="${TOP+r*RY-30}">Step ${r+1}${cnt[r]>1?" · "+cnt[r]+" at the same time":""}</text>`)}
-  svg.innerHTML=`<g>${e}</g><g>${g}</g>${labs}${axis}`;
+    Object.keys(cnt).map(Number).forEach(r=>{const st=STEPS[r], y0=TOP+st.top*RY;
+      labs+=`<text class="rowlab" x="12" y="${y0-30}">Step ${r+1}${cnt[r]>1?" · "+cnt[r]+" at the same time":""}</text>`;
+      if(r%2) bands+=`<rect class="band" x="0" y="${y0-48}" width="${W}" height="${st.h*RY}"/>`})}
+  svg.innerHTML=`${bands}<g>${e}</g><g>${g}</g>${labs}${axis}`;
   const cand=[focus||(tab==="path"?target:null)].find(x=>x&&!M[x].two), zs=document.getElementById("zsort");
   zs.setAttribute("aria-pressed",!!sortFor); zs.disabled=!sortFor&&!cand;
   zs.textContent=sortFor?"Show full map":cand?"Sort prerequisites of "+cand:"Sort prerequisites (pick a subject)";
