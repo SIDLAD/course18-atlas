@@ -143,6 +143,7 @@ body.mapfull{overflow:hidden}
 svg{display:block}
 .edge{fill:none;stroke:var(--line);stroke-width:1}
 .edge.co{stroke-dasharray:4 4}
+.edge.rec{stroke-dasharray:1 4;stroke-linecap:round;stroke-width:1.6}
 .edge.on{stroke:var(--hl);stroke-width:2.2}
 .edge.off{opacity:.25}
 .node{cursor:pointer}
@@ -212,6 +213,7 @@ footer{font-size:12.5px;color:var(--muted);max-width:85ch}
       <span><b style="color:var(--adv);font-weight:400">18.1xx+</b> advanced</span>
       <span><b style="color:var(--ext);font-style:italic;font-weight:400">6.1210</b> outside math</span>
       <span>dashed line: take at the same time</span>
+      <span>dotted line: recommended background, not required</span>
     </div>
   </div>
   <div class="map">
@@ -287,7 +289,7 @@ const N=[
 {id:"18.676",s:"Stoch. calculus",t:"Stochastic Calculus",a:59,p:[["18.675"]],grad:1,d:"Brownian motion, Itô calculus and stochastic differential equations."},
 {id:"18.677",s:"Stoch. topics",t:"Topics in Stochastic Processes",a:61,p:[["18.675"]],grad:1,d:"Advanced stochastic processes; topics change each year."},
 {id:"18.655",s:"Math statistics",t:"Mathematical Statistics",a:40,p:[["18.650"],AN],grad:1,d:"Statistical theory done rigorously."},
-{id:"18.657",s:"Stats topics",t:"Topics in Statistics",a:42,p:[],grad:1,d:"Topics change each year. Needs permission of the instructor."},
+{id:"18.657",s:"Stats topics",t:"Topics in Statistics",a:42,p:[],rec:[["18.655"]],grad:1,d:"A graduate seminar whose topic changes every year. Officially it needs only the instructor's permission, but it assumes graduate-level statistics, so 18.655 is the natural lead-in. The free course linked here is the Fall 2015 edition, whose topic was the mathematics of machine learning."},
 {id:"18.338",s:"Random matrices",t:"Eigenvalues of Random Matrices",a:58,p:[["18.701"]],grad:1,d:"The spectra of large random matrices. Also open with permission of the instructor."},
 {id:"18.901",s:"Topology",t:"Introduction to Topology",a:90,p:[AN],d:"Topological spaces, compactness, connectedness and the fundamental group."},
 {id:"18.101",s:"Analysis & manif.",t:"Analysis and Manifolds",a:88,p:[LA,AN],d:"Multivariable analysis done rigorously, leading to manifolds."},
@@ -380,7 +382,7 @@ const RES={
 "18.675":[["o","18-175-theory-of-probability-spring-2014","Theory of Probability (18.175, earlier number)","Spring 2014"]],
 "18.677":[["o","18-177-universal-random-structures-in-2d-fall-2015","Universal Random Structures in 2D (18.177, a past topic of this subject)","Fall 2015"]],
 "18.655":[["o","18-655-mathematical-statistics-spring-2016","Mathematical Statistics","Spring 2016"]],
-"18.657":[["o","18-657-mathematics-of-machine-learning-fall-2015","Mathematics of Machine Learning (a past topic)","Fall 2015"]],
+"18.657":[["o","18-657-mathematics-of-machine-learning-fall-2015","Fall 2015 topic: Mathematics of Machine Learning","Fall 2015"]],
 "18.338":[["o","18-338j-infinite-random-matrix-theory-fall-2004","Infinite Random Matrix Theory","Fall 2004"]],
 "18.901":[["o","18-901-introduction-to-topology-fall-2004","Introduction to Topology","Fall 2004"],["b","James Munkres, Topology"]],
 "18.101":[["o","18-101-analysis-ii-fall-2005","Analysis II (earlier title of this subject)","Fall 2005"]],
@@ -473,7 +475,7 @@ const naiveMemo={};
 function naive(id){
   if(naiveMemo[id]) return naiveMemo[id];
   const s=new Set([id]), n=M[id];
-  if(n) groups(n).forEach(g=>{
+  if(n) [...groups(n),...(n.rec||[])].forEach(g=>{
     let best=null; g.filter(a=>M[a]).forEach(a=>{const c=naive(a);if(!best||c.size<best.size)best=c});
     if(best) best.forEach(x=>s.add(x));
   });
@@ -483,7 +485,7 @@ function close(seed){
   const S=new Set(seed), added=[], stack=[...seed];
   while(stack.length){
     const n=M[stack.pop()]; if(!n) continue;
-    groups(n).forEach(g=>{
+    [...groups(n),...(n.rec||[])].forEach(g=>{
       if(g.some(a=>S.has(a))) return;
       let best=null,bc=1e9;
       g.filter(a=>M[a]).forEach(a=>{const c=[...naive(a)].filter(x=>!S.has(x)).length;if(c<bc){bc=c;best=a}});
@@ -519,7 +521,7 @@ function depth(id){
   const n=M[id]; if(!n) return 0; depMemo[id]=0;
   let d=0;
   // Every listed prerequisite, including each OR alternative, sits on a higher row, so no line runs sideways or up.
-  (n.p||[]).forEach(g=>g.filter(a=>M[a]).forEach(a=>d=Math.max(d,1+depth(a))));
+  [...(n.p||[]),...(n.rec||[])].forEach(g=>g.filter(a=>M[a]).forEach(a=>d=Math.max(d,1+depth(a))));
   (n.c||[]).forEach(g=>g.filter(a=>M[a]).forEach(a=>d=Math.max(d,depth(a))));
   if(n.two) d=Math.max(d,3);
   return depMemo[id]=d;
@@ -756,7 +758,7 @@ function chip(id){return `<button type="button" class="chip" data-open="${id}">$
 // ---------- Map ----------
 const svg=document.getElementById("svg");
 const GAP=106, RY=100, TOP=50, PADX=70, SPAN=2300;
-let POS={}, W=0, H=0, LV=null, sortFor=null, isolate=false;
+let POS={}, W=0, H=0, LV=null, sortFor=null, isolate=window.innerWidth<600; // phones start isolated: the full map is too wide to read there
 // Layers for one subject: each prerequisite subject on its shortest route goes in the earliest row it can,
 // so everything in a row can be taken at the same time and the number of rows is as small as possible.
 function layers(id){return layersOf(new Set([...close([id]).S].filter(x=>M[x])))}
@@ -765,7 +767,7 @@ function layersOf(S){
   const lv=x=>{
     if(x in L) return L[x];
     const n=M[x]; L[x]=0; let d=0;
-    (n.p||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
+    [...(n.p||[]),...(n.rec||[])].forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
     (n.c||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,Math.min(...v))});
     if(n.two){const v=[...S].filter(a=>a!==x&&isAdv(a)&&a!=="18.090").map(lv).sort((a,b)=>a-b);if(v.length>=2)d=Math.max(d,v[1]+1)}
     return L[x]=d;
@@ -793,15 +795,26 @@ relayout();
 function fitZoom(){zoom=LV?Math.min(1,Math.max(0.3,(document.getElementById("mapscroll").clientWidth-4)/W)):0.8}
 function sortMap(id){sortFor=id; relayout(); fitZoom(); drawMap()}
 function applyZoom(){svg.style.width=Math.round(W*zoom)+"px"; svg.style.height=Math.round(H*zoom)+"px"}
+let lastView="";
+function showHighlighted(){
+  const ids=LV?Object.keys(LV):[...highlight].filter(x=>POS[x]);
+  if(!ids.length) return;
+  const xs=ids.map(i=>POS[i][0]), ys=ids.map(i=>POS[i][1]);
+  // Centre the highlighted block if it fits; otherwise start at its first (topmost) subject.
+  const first=ids.reduce((b,i)=>POS[i][1]<POS[b][1]||(POS[i][1]===POS[b][1]&&POS[i][0]<POS[b][0])?i:b);
+  const fit=(lo,hi,size,at)=>(hi-lo)*zoom+120<size?((lo+hi)/2)*zoom-size/2:at;
+  ms.scrollLeft=Math.max(0,fit(Math.min(...xs),Math.max(...xs),ms.clientWidth,POS[first][0]*zoom-ms.clientWidth/2));
+  ms.scrollTop=Math.max(0,fit(Math.min(...ys),Math.max(...ys),ms.clientHeight,Math.min(...ys)*zoom-60));
+}
 function drawMap(){
   const H1=highlight, any=H1.size>0;
   let e="",g="";
-  N.forEach(n=>{[[n.p,false],[n.c,true]].forEach(([gs,co])=>(gs||[]).forEach(gr=>gr.forEach(a=>{
+  N.forEach(n=>{[[n.p,false],[n.c,true],[n.rec,false,true]].forEach(([gs,co,rc])=>(gs||[]).forEach(gr=>gr.forEach(a=>{
     if(!POS[a]||!POS[n.id]) return;
     if(LV&&(co?LV[a]>LV[n.id]:LV[a]>=LV[n.id])) return;
     const [x1,y1]=POS[a],[x2,y2]=POS[n.id],my=(y1+y2)/2+11;
     const on=any&&H1.has(a)&&H1.has(n.id);
-    e+=`<path class="edge${co?" co":""}${on?" on":any?" off":""}" d="M${x1},${y1+22} C${x1},${my} ${x2},${my} ${x2},${y2-22}"/>`;
+    e+=`<path class="edge${co?" co":""}${rc?" rec":""}${on?" on":any?" off":""}" d="M${x1},${y1+22} C${x1},${my} ${x2},${my} ${x2},${y2-22}"/>`;
   })))});
   N.forEach(n=>{
     if(!POS[n.id]) return;
@@ -833,6 +846,8 @@ function drawMap(){
     ?`Prerequisites of ${sortFor}, sorted: ${Object.keys(LV).length} subjects in ${Math.max(...Object.values(LV))+1} steps. Everything in a row can be taken together; dashed lines mean "at the same time".`
     :LV?`${showing}, shown on its own: ${Object.keys(LV).length} subjects in ${steps} steps. Everything in a row can be taken together.`
     :showing+(any?". Faded subjects aren't part of it.":". Lower rows need more prerequisites.");
+  const view=[tab,sortFor,isolate,[...highlight].sort().join()].join("|");
+  if(view!==lastView){lastView=view;requestAnimationFrame(showHighlighted)}
   document.getElementById("fullnote").textContent=document.getElementById("showing").textContent+" Press Esc to leave full screen.";
 }
 
@@ -855,6 +870,7 @@ function open(id){
     <p>${esc(n.d||"")}</p>
     ${n.ext?"":`<div class="chips"><button type="button" class="primary" data-road="${id}">Show the road to ${id}</button>${n.two?"":`<button type="button" data-sort="${id}">Sort its prerequisites on the map</button>`}</div>`}
     <div><h4>You need first</h4>${need}</div>
+    ${n.rec?`<div><h4>Recommended first (not required)</h4>${n.rec.map(g=>`<div class="chips">${g.map(chip).join(' <span class="or">or</span> ')}</div>`).join('<div class="and">AND</div>')}</div>`:""}
     <div><h4>It opens</h4>${ks.length?`<div class="chips">${ks.map(k=>chip(k.id)).join("")}</div>`:"<p>Nothing else on this map.</p>"}</div>
     <div><h4>Degrees that use it</h4>${(DEG[id]||[]).length?`<p class="or" style="margin-bottom:6px">In the sample plan for ${DEG[id].length} of ${TRACKS.length} degrees. Click one to open its plan.</p><ul class="deglist">${DEG[id].map(d=>`<li><button type="button" data-plan="${d.k}"><span>${esc(d.name)}</span><span class="rl">${esc(d.role)}</span></button></li>`).join("")}</ul>`:"<p>No sample degree plan uses it. You can still swap it into a plan as an elective if it counts.</p>"}</div>
     ${counts.length?`<div><h4>Counts toward</h4><div class="chips">${counts.map(t=>`<span class="tag">${t}</span>`).join("")}</div></div>`:""}
