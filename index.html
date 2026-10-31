@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Course 18 Atlas: an unofficial map of the MIT math major</title>
+<meta name="description" content="Unofficial interactive map of the MIT math major (Course 18): plan a degree by field, trace the prerequisites for any subject, compare two degrees, and find free OCW resources for each course.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: three task tabs (plan a degree / road to a course / explore) over one shared engineering-paper map; course details slide in from the right. */
+:root{
+  --bg:#f6f8fa; --paper:#ffffff; --grid:#e4eaf1; --fg:#1a2230; --muted:#5b6677; --line:#cfd7e1; --soft:#eef2f7;
+  --gir:#c0302a; --low:#1d7a3c; --bridge:#2148c9; --adv:#7b2e93; --ext:#6c7584;
+  --hl:#c97a00; --ok:#1d7a3c; --warn:#a85f00;
+  --f-display:"STIX Two Text","Cambria Math",Georgia,serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11151c; --paper:#171c24; --grid:#1f2732; --fg:#e3e8ef; --muted:#9aa5b5; --line:#344151; --soft:#1d242e;
+  --gir:#ff7266; --low:#58c780; --bridge:#82a7ff; --adv:#d095ea; --ext:#909aa9;
+  --hl:#ffb02e; --ok:#58c780; --warn:#ffb02e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11151c; --paper:#171c24; --grid:#1f2732; --fg:#e3e8ef; --muted:#9aa5b5; --line:#344151; --soft:#1d242e;
+  --gir:#ff7266; --low:#58c780; --bridge:#82a7ff; --adv:#d095ea; --ext:#909aa9;
+  --hl:#ffb02e; --ok:#58c780; --warn:#ffb02e; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1360px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+a{color:var(--bridge)}
+:focus-visible{outline:2px solid var(--hl);outline-offset:2px}
+header{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:end;justify-content:space-between}
+header h1{font-family:var(--f-display);font-weight:600;font-size:clamp(30px,4vw,42px);line-height:1.1;margin:0}
+header p{margin:6px 0 0;max-width:62ch;color:var(--muted)}
+.search{display:flex;flex-direction:column;gap:4px;min-width:min(300px,100%)}
+.search label{font-size:12px;color:var(--muted)}
+input,select,button{font:inherit;font-size:14px;color:var(--fg)}
+input,select{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0;max-width:100%}
+button{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{border:none;border-bottom:3px solid transparent;border-radius:0;background:none;padding:10px 14px 9px;font-weight:500;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--fg)}
+.tab small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.panel{display:flex;flex-direction:column;gap:18px}
+.lede{margin:0;color:var(--muted);max-width:75ch}
+
+.pickers{display:flex;flex-direction:column;gap:10px}
+.pickrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pickrow .lab{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);width:100%}
+.pill{border-radius:999px;padding:6px 13px;font-size:13.5px}
+.pill[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.blurb{background:var(--soft);border-radius:10px;padding:12px 16px;margin:0;max-width:none}
+.blurb b{font-family:var(--f-display);font-size:18px;font-weight:600}
+
+.plan{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.plan{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px 18px;min-width:0}
+.card h3{margin:0 0 10px;font-family:var(--f-display);font-size:20px;font-weight:600}
+.slots{display:flex;flex-direction:column;gap:10px}
+.slot{display:flex;flex-direction:column;gap:4px}
+.slot label{font-size:12.5px;color:var(--muted)}
+.slot select{width:100%}
+.slot.warn select{border-color:var(--warn)}
+.slot .why{font-size:12px;color:var(--warn)}
+.checks{list-style:none;padding:0;margin:14px 0 0;display:flex;flex-direction:column;gap:6px;font-size:14px;border-top:1px solid var(--line);padding-top:12px}
+.checks li{display:grid;grid-template-columns:20px 1fr;gap:6px}
+.checks .mk{font-family:var(--f-mono)} .checks .y{color:var(--ok)} .checks .n{color:var(--warn)}
+.extra{font-size:13.5px;margin:12px 0 0;color:var(--muted)}
+
+.summary{font-family:var(--f-display);font-size:19px;margin:0 0 12px;text-wrap:balance}
+.years{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.year{border:1px solid var(--line);border-radius:10px;overflow:hidden;min-width:0}
+.year h4{margin:0;padding:7px 12px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--soft);font-weight:600}
+.terms{display:grid;grid-template-columns:1fr 1fr}
+.term{padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.term + .term{border-left:1px solid var(--line)}
+.term .tn{font-size:11.5px;color:var(--muted)}
+.cc{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;padding:6px 8px;border-radius:7px;border:1px solid var(--line);background:var(--paper);width:100%;font-size:12px}
+.ccb{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:none;background:none;padding:0;width:100%}
+.ccl{font-size:12px;font-weight:500}
+.ccm{border:none;background:none;padding:0;font-size:12px;color:var(--muted);text-decoration:underline}
+.ccn{font-size:11.5px;color:var(--muted)}
+.cmp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+@media (max-width:900px){.cmp{grid-template-columns:minmax(0,1fr)}}
+.cmpcol{border-top:4px solid var(--k)}
+.cmpcol.ca{--k:var(--bridge)} .cmpcol.cb{--k:var(--hl)} .cmpcol.cc2{--k:var(--low)}
+.cmpcol h3{margin:0;color:var(--fg)}
+.sub{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.cmplist{display:flex;flex-direction:column;gap:6px}
+.node.ma .hit{stroke:var(--bridge);stroke-width:2.6;fill:color-mix(in srgb,var(--bridge) 12%,var(--paper))}
+.node.mb .hit{stroke:var(--low);stroke-width:2.6;fill:color-mix(in srgb,var(--low) 12%,var(--paper))}
+.node.mboth .hit{stroke:var(--hl);stroke-width:2.6;fill:color-mix(in srgb,var(--hl) 14%,var(--paper))}
+.res{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.res li{display:flex;flex-direction:column;gap:1px}
+.rk{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.cc .n{font-family:var(--f-display);font-size:16px;line-height:1.2}
+.cc .s{font-size:12px;color:var(--fg);line-height:1.3}
+.cc .r{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.cc.role-prereq{border-style:dashed}
+.cc.role-target{border-color:var(--hl);border-width:2px}
+.cc.lvl-gir .n{color:var(--gir)} .cc.lvl-low .n{color:var(--low);font-weight:700} .cc.lvl-bridge .n{color:var(--bridge);font-weight:700} .cc.lvl-adv .n{color:var(--adv)} .cc.lvl-ext .n{color:var(--ext);font-style:italic}
+.empty{font-size:12px;color:var(--muted);opacity:.6}
+.choices{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.choices li::marker{color:var(--muted)}
+.quick{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.pathbar{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.pathbar .search{flex:1 1 320px}
+
+.mapsec{display:flex;flex-direction:column;gap:8px}
+.maphead{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+.maphead h2{margin:0;font-family:var(--f-display);font-size:22px;font-weight:600}
+.maphead .showing{font-size:13.5px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted)}
+.legend b{font-family:var(--f-display);font-size:14px}
+.map{background:var(--paper);border:1px solid var(--line);border-radius:12px;position:relative;min-width:0}
+.mapscroll{overflow:auto;max-height:74vh;border-radius:0 0 12px 12px;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+.zoom{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.zoom #ziso[aria-pressed="true"],.zoom #zfull[aria-pressed="true"]{border-color:var(--hl);color:var(--hl)}
+.map.full{position:fixed;inset:0;z-index:15;border-radius:0;border:0;display:flex;flex-direction:column}
+.map.full .mapscroll{max-height:none;flex:1;border-radius:0}
+.map .fullnote{display:none}
+.map.full .fullnote{display:block;padding:12px max(16px,env(safe-area-inset-left,0px)) 8px;padding-right:max(16px,env(safe-area-inset-right,0px));font-size:13.5px;color:var(--muted);padding-top:calc(12px + env(safe-area-inset-top,0px))}
+
+body.mapfull{overflow:hidden}
+.zoom button{padding:3px 10px;font-family:var(--f-mono);font-size:13px}
+.zoom #zsort,.zoom #ziso,.zoom #zfull{font-family:var(--f-sans)} .zoom #zsort[aria-pressed="true"]{border-color:var(--hl);color:var(--hl)}
+.rowlab{font-family:var(--f-mono);font-size:12px;fill:var(--muted)}
+svg{display:block}
+.edge{fill:none;stroke:var(--line);stroke-width:1}
+.edge.co{stroke-dasharray:4 4}
+.edge.on{stroke:var(--hl);stroke-width:2.2}
+.edge.off{opacity:.25}
+.node{cursor:pointer}
+.node .hit{fill:var(--paper);fill-opacity:.85;stroke:transparent;stroke-width:1.3}
+.node:hover .hit{stroke:var(--muted)}
+.node .num{font-family:var(--f-display);font-size:16px}
+.node .ttl{font-family:var(--f-display);font-size:10.5px;fill:var(--fg)}
+.node .gt{font-family:var(--f-mono);font-size:7.5px;fill:var(--muted);letter-spacing:.06em}
+.node.lvl-gir .num{fill:var(--gir)} .node.lvl-low .num{fill:var(--low);font-weight:700}
+.node.lvl-bridge .num{fill:var(--bridge);font-weight:700} .node.lvl-adv .num{fill:var(--adv)} .node.lvl-ext .num{fill:var(--ext);font-style:italic}
+.node.in .hit{stroke:var(--hl);stroke-width:1.8}
+.node.focus .hit{stroke:var(--hl);stroke-width:3}
+.node.fade{opacity:.22}
+.axis{font-family:var(--f-display);font-size:22px;fill:var(--low)}
+.axisl{stroke:var(--fg);stroke-width:1;fill:none}
+
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);background:var(--paper);border-left:1px solid var(--line);box-shadow:-12px 0 32px rgba(0,0,0,.12);z-index:20;overflow-y:auto;
+  padding-block:calc(18px + env(safe-area-inset-top,0px)) calc(24px + env(safe-area-inset-bottom,0px));padding-left:20px;padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+.drawer .x{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));padding:4px 10px}
+.eyebrow{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.drawer h2{font-family:var(--f-display);font-size:30px;margin:2px 0 0;line-height:1.1}
+.drawer h3{font-family:var(--f-display);font-weight:400;font-size:18px;margin:2px 0 0;text-wrap:balance;padding-right:40px}
+.drawer h4{margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.drawer p{margin:0;font-size:14.5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{font-family:var(--f-mono);font-size:12.5px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);background:transparent;cursor:pointer}
+.tag{font-size:12.5px;padding:2px 9px;border-radius:999px;background:var(--soft)}
+.or{font-size:11px;color:var(--muted)}
+.and{font-size:11px;letter-spacing:.08em;color:var(--muted);margin:2px 0}
+.links{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.src{font-size:14px;display:flex;flex-wrap:wrap;gap:6px 22px}
+footer{font-size:12.5px;color:var(--muted);max-width:85ch}
+@media (prefers-reduced-motion:no-preference){.drawer{transition:transform .2s}}
+</style>
+
+<div class="wrap">
+</head>
+<body>
+<header>
+  <div>
+    <h1>Course 18 Atlas</h1>
+    <p>What a math degree at MIT actually involves: pick where you want to end up and see every subject on the way, term by term.</p>
+  </div>
+  <div class="search">
+    <label for="find">Look up any subject</label>
+    <input id="find" list="courselist" placeholder="e.g. 18.701 or topology" autocomplete="off">
+  </div>
+</header>
+<datalist id="courselist"></datalist>
+
+<div class="tabs" role="tablist">
+  <button class="tab" role="tab" id="t-plan" data-tab="plan">Plan a degree<small>Everything for a bachelor's in one field</small></button>
+  <button class="tab" role="tab" id="t-path" data-tab="path">Road to a course<small>What you need before one subject</small></button>
+  <button class="tab" role="tab" id="t-compare" data-tab="compare">Compare two degrees<small>What's shared and what's different</small></button>
+  <button class="tab" role="tab" id="t-explore" data-tab="explore">Explore the map<small>Browse fields and subjects</small></button>
+</div>
+
+<div id="panel" class="panel"></div>
+
+<section class="mapsec">
+  <div class="maphead">
+    <div><h2>The map</h2><div class="showing" id="showing"></div></div>
+    <div class="legend">
+      <span><b style="color:var(--gir)">18.01</b> GIR calculus</span>
+      <span><b style="color:var(--low)">18.0x</b> intermediate</span>
+      <span><b style="color:var(--bridge)">18.090</b> bridge</span>
+      <span><b style="color:var(--adv);font-weight:400">18.1xx+</b> advanced</span>
+      <span><b style="color:var(--ext);font-style:italic;font-weight:400">6.1210</b> outside math</span>
+      <span>dashed line: take at the same time</span>
+    </div>
+  </div>
+  <div class="map">
+    <div class="zoom"><button type="button" id="ziso" aria-pressed="false" title="Show only the subjects highlighted for this tab">Isolate</button><button type="button" id="zsort" title="Lay out one subject's prerequisites so every row can be taken at the same time">Sort prerequisites</button><button type="button" id="zout" aria-label="Zoom out">−</button><button type="button" id="zfit">fit</button><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zfull" aria-pressed="false" title="Open the map on its own, filling the window">Full screen</button></div>
+    <div class="fullnote" id="fullnote"></div><div class="mapscroll" id="mapscroll"><svg id="svg" role="img" aria-label="Course 18 prerequisite map"></svg></div>
+  </div>
+</section>
+
+<section>
+  <div class="src">
+    <a href="https://math.mit.edu/academics/undergrad/major/course18/" target="_blank" rel="noopener">Course 18 requirements (Fall 2026+)</a>
+    <a href="https://math.mit.edu/academics/undergrad/major/old-degree-requirements.html" target="_blank" rel="noopener">Pre-Fall 2026 requirements and CI-M lists</a>
+    <a href="https://math.mit.edu/academics/undergrad/roadmaps.html" target="_blank" rel="noopener">Department roadmaps by field</a>
+    <a href="https://catalog.mit.edu/subjects/18/" target="_blank" rel="noopener">MIT Catalog: Course 18</a>
+    <a href="https://ocw.mit.edu/search/?d=Mathematics" target="_blank" rel="noopener">OpenCourseWare: math</a>
+    <a href="https://math.mit.edu/~poonen/notes02.pdf" target="_blank" rel="noopener">Poonen's 18.02 notes</a>
+  </div>
+</section>
+<footer>Prerequisites come from the MIT Catalog; field lists come from the department roadmaps; degree rules come from the department's requirement pages (checked October 2026). The sample plans are one valid way to meet the rules, not advice from MIT. Schedules assume at most one math subject per term in year one and two per term after that, and skip non-math GIRs. Many students place out of 18.01 or 18.02. Confirm a real plan with the Math Undergraduate Office. <strong>Unofficial. Not affiliated with or endorsed by MIT.</strong></footer>
+</div>
+
+<aside class="drawer" id="drawer" hidden aria-label="Subject details"></aside>
+
+<script>
+const LA=["18.06","18.700","18.701"], AN=["18.100"];
+// a = position from applied (0) to theoretical (100). p = prerequisites (AND of OR-groups), c = take-alongside groups.
+const N=[
+{id:"18.01",s:"Calculus",t:"Calculus I (GIR)",a:50,p:[],d:"Derivatives, integrals and series in one variable. Every MIT student takes it or places out."},
+{id:"18.02",s:"Multivar calc",t:"Calculus II: Multivariable (GIR)",a:50,p:[["18.01"]],d:"Vectors, partial derivatives, multiple integrals, and the theorems of Green, Stokes and Gauss."},
+{id:"8.02",s:"Physics II",t:"Physics II: Electricity and Magnetism (GIR)",a:2,p:[],ext:1,d:"A Physics GIR every MIT student takes. The nonlinear-dynamics subjects require it."},
+{id:"6.100A",s:"Python",t:"Introduction to Computer Science Programming in Python",a:36,p:[],ext:1,d:"A half-term introduction to programming in Python, from EECS."},
+{id:"6.1010",s:"Programming",t:"Fundamentals of Programming",a:38,p:[["6.100A"]],ext:1,d:"Writing larger programs: recursion, testing, debugging. Check the EECS catalog for the full prerequisite rule."},
+{id:"6.1210",s:"Intro algorithms",t:"Introduction to Algorithms",a:44,p:[["6.100A"],["18.062J"]],ext:1,d:"Data structures and algorithms from EECS. Required before 18.410J and 18.400J."},
+{id:"18.03",s:"Diff eqs",t:"Differential Equations",a:20,p:[["18.01"]],c:[["18.02"]],d:"Ordinary differential equations, linear systems, Laplace and Fourier methods, and modelling. 18.032 is an alternative version."},
+{id:"18.062J",s:"Math for CS",t:"Mathematics for Computer Science (also 6.1200J)",a:42,p:[["18.01"]],d:"Proofs, induction, graphs, counting and discrete probability. The usual door into theoretical computer science."},
+{id:"18.090",s:"Math reasoning",t:"Introduction to Mathematical Reasoning",a:74,p:[["18.01"]],c:[["18.02"]],d:"A first course in reading and writing proofs. Counts as an advanced subject and opens 18.701 directly."},
+{id:"18.04",s:"Complex vars",t:"Complex Variables with Applications",a:8,p:[["18.02"],["18.03"]],d:"Complex functions, contour integrals and residues, used to solve applied problems."},
+{id:"18.300",s:"Continuum appl.",t:"Principles of Continuum Applied Mathematics",a:13,p:[["18.02"],["18.03"]],d:"Modelling the physical world with differential equations: scaling, waves, diffusion, asymptotics."},
+{id:"18.330",s:"Numerical anal.",t:"Introduction to Numerical Analysis",a:24,p:[["18.02"],["18.03"]],d:"How computers do calculus: root finding, interpolation, numerical integration, ODE solvers, and their errors."},
+{id:"18.05",s:"Prob/stat",t:"Introduction to Probability and Statistics",a:30,p:[["18.02"]],d:"Probability and statistics with an applied, data-oriented emphasis."},
+{id:"18.06",s:"Linear algebra",t:"Linear Algebra (18.06, or 18.C06J)",a:33,p:[["18.02"]],d:"Matrices, vector spaces, eigenvalues and the SVD, taught for use. 18.C06J adds optimization."},
+{id:"18.065",s:"Matrix methods",t:"Matrix Methods in Data Analysis, Signal Processing, and Machine Learning",a:28,p:[["18.06"]],d:"Linear algebra put to work on data, signals and machine learning."},
+{id:"18.600",s:"Probability",t:"Probability and Random Variables",a:47,p:[["18.02"]],d:"Random variables, distributions, expectation and limit theorems. The main probability course."},
+{id:"18.200",s:"Discrete appl.",t:"Principles of Discrete Applied Mathematics (18.200 or 18.200A)",a:40,p:[],c:[["18.06"]],d:"Graphs, counting, coding, cryptography and algorithms. 18.200 is communication-intensive; 18.200A is not."},
+{id:"18.642",s:"Math finance",t:"Topics in Mathematics with Applications in Finance",a:26,p:[["18.03"],["18.06"],["18.05","18.600"]],d:"Stochastic processes, optimization and statistics as used in finance."},
+{id:"18.700",s:"Lin alg (proofs)",t:"Linear Algebra (theoretical)",a:68,p:[["18.02"]],d:"Linear algebra with proofs: abstract vector spaces, linear maps, inner products, canonical forms."},
+{id:"18.703",s:"Modern algebra",t:"Modern Algebra",a:71,p:[["18.02"]],d:"Groups, rings and fields at a gentler pace than 18.701."},
+{id:"18.900",s:"Plane geometry",t:"Geometry and Topology in the Plane",a:64,p:[["18.03","18.06"]],d:"Geometric and topological ideas made concrete in the plane."},
+{id:"18.510",s:"Logic & sets",t:"Introduction to Mathematical Logic and Set Theory",a:80,p:[],d:"Propositional and first-order logic, completeness, and set theory with ordinals and cardinals."},
+{id:"18.100",s:"Real analysis",t:"Real Analysis (18.100A, B, P or Q)",a:86,p:[["18.02"]],d:"Calculus made rigorous: real numbers, sequences, continuity, the Riemann integral. A and P stay on the real line; B and Q use metric spaces. P and Q are communication-intensive."},
+{id:"18.781",s:"Number theory",t:"Theory of Numbers",a:96,p:[],d:"Primes, congruences, quadratic reciprocity and arithmetic functions. No formal prerequisites."},
+{id:"18.352J",s:"Natural env.",t:"Nonlinear Dynamics: The Natural Environment",a:5,p:[["18.02"]],c:[["18.03"]],d:"Nonlinear dynamics in environmental and geophysical systems. Also needs Physics I."},
+{id:"18.353J",s:"Chaos",t:"Nonlinear Dynamics: Chaos",a:3,p:[["8.02"],["18.03"]],d:"Bifurcations, nonlinear oscillators and chaos."},
+{id:"18.354J",s:"Continuum sys.",t:"Nonlinear Dynamics: Continuum Systems",a:9,p:[["8.02"],["18.03"]],d:"Fluids, elasticity and pattern formation."},
+{id:"18.303",s:"Linear PDEs",t:"Linear Partial Differential Equations: Analysis and Numerics",a:17,p:[["18.06","18.700"]],d:"Heat, wave and Laplace equations, solved by analysis and on the computer. Can replace 18.03 in the degree."},
+{id:"18.335J",s:"Numerical meth.",t:"Introduction to Numerical Methods",a:21,p:[LA],d:"Numerical linear algebra: how matrix computations work and when they go wrong."},
+{id:"18.337J",s:"Parallel & SciML",t:"Parallel Computing and Scientific Machine Learning",a:27,p:[LA],d:"High-performance and parallel computing, and machine learning for scientific models."},
+{id:"18.650",s:"Statistics",t:"Fundamentals of Statistics",a:38,p:[["18.600"]],d:"Estimation, hypothesis testing and regression, with the theory behind them. 6.3700 also satisfies the prerequisite."},
+{id:"18.615",s:"Stoch. processes",t:"Introduction to Stochastic Processes",a:50,p:[["18.600"]],d:"Markov chains, Poisson processes, martingales and Brownian motion."},
+{id:"18.211",s:"Combinatorics",t:"Combinatorial Analysis",a:52,p:[["18.02"],LA],d:"Counting, generating functions, permutations and graphs."},
+{id:"18.453",s:"Comb. optim.",t:"Combinatorial Optimization",a:44,p:[LA],d:"Matchings, flows, matroids and linear programming."},
+{id:"18.404",s:"Theory of comp.",t:"Theory of Computation",a:56,p:[["18.062J","18.200"]],d:"Automata, computability and complexity, including P versus NP."},
+{id:"18.400J",s:"Computability",t:"Computability and Complexity Theory",a:57,p:[["18.062J"],["6.1210"]],d:"The EECS version of the theory of computation."},
+{id:"18.410J",s:"Algorithms",t:"Design and Analysis of Algorithms (also 6.1220J)",a:48,p:[["18.062J"],["6.1210"]],d:"Algorithm design and proof: divide and conquer, dynamic programming, graph algorithms, randomization."},
+{id:"18.415J",s:"Adv. algorithms",t:"Advanced Algorithms",a:47,p:[["18.410J"],["18.062J","18.600"]],grad:1,d:"Graduate-level algorithm design."},
+{id:"18.416J",s:"Randomized alg.",t:"Randomized Algorithms",a:51,p:[["18.062J"],["18.410J"]],grad:1,d:"Algorithms that use randomness, and how to analyze them."},
+{id:"18.435J",s:"Quantum comp.",t:"Quantum Computation",a:58,p:[LA],d:"Quantum algorithms and quantum information. 8.05 or 18.C06J also satisfy the prerequisite."},
+{id:"18.417",s:"Comp. mol. bio",t:"Introduction to Computational Molecular Biology",a:30,p:[["6.1210"]],d:"Algorithms for biological sequence and structure data."},
+{id:"18.710",s:"Appl. algebra",t:"Applied Abstract Algebra",a:62,p:[["18.06","18.700"]],d:"Groups, rings and finite fields, applied to coding theory and cryptography."},
+{id:"18.701",s:"Algebra I",t:"Algebra I",a:78,p:[["18.100","18.090"]],d:"Groups, symmetry and linear algebra, done rigorously. Counts as linear algebra for the degree."},
+{id:"18.702",s:"Algebra II",t:"Algebra II",a:78,p:[["18.701"]],d:"Rings, fields, modules and Galois theory."},
+{id:"18.675",s:"Probability thy",t:"Theory of Probability",a:61,p:[AN],grad:1,d:"Probability built on measure theory."},
+{id:"18.676",s:"Stoch. calculus",t:"Stochastic Calculus",a:59,p:[["18.675"]],grad:1,d:"Brownian motion, Itô calculus and stochastic differential equations."},
+{id:"18.677",s:"Stoch. topics",t:"Topics in Stochastic Processes",a:61,p:[["18.675"]],grad:1,d:"Advanced stochastic processes; topics change each year."},
+{id:"18.655",s:"Math statistics",t:"Mathematical Statistics",a:40,p:[["18.650"],AN],grad:1,d:"Statistical theory done rigorously."},
+{id:"18.657",s:"Stats topics",t:"Topics in Statistics",a:42,p:[],grad:1,d:"Topics change each year. Needs permission of the instructor."},
+{id:"18.338",s:"Random matrices",t:"Eigenvalues of Random Matrices",a:58,p:[["18.701"]],grad:1,d:"The spectra of large random matrices. Also open with permission of the instructor."},
+{id:"18.901",s:"Topology",t:"Introduction to Topology",a:90,p:[AN],d:"Topological spaces, compactness, connectedness and the fundamental group."},
+{id:"18.101",s:"Analysis & manif.",t:"Analysis and Manifolds",a:88,p:[LA,AN],d:"Multivariable analysis done rigorously, leading to manifolds."},
+{id:"18.102",s:"Functional anal.",t:"Introduction to Functional Analysis",a:84,p:[LA,AN],d:"Infinite-dimensional spaces: Banach and Hilbert spaces and operators on them."},
+{id:"18.103",s:"Fourier anal.",t:"Fourier Analysis: Theory and Applications",a:82,p:[LA,AN],d:"Fourier series and transforms, rigorously, with applications."},
+{id:"18.112",s:"Complex analysis",t:"Functions of a Complex Variable",a:80,p:[LA,AN],d:"Complex analysis with full proofs. Can replace 18.04 in the older Applied option."},
+{id:"18.152",s:"PDEs (rigorous)",t:"Introduction to Partial Differential Equations",a:76,p:[LA,AN],d:"The classic PDEs with proofs. Can replace 18.03 in the degree."},
+{id:"18.950",s:"Diff. geometry",t:"Differential Geometry",a:93,p:[LA,AN],d:"Curves and surfaces: curvature, geodesics and the Gauss–Bonnet theorem."},
+{id:"18.125",s:"Measure theory",t:"Measure Theory and Analysis",a:84,p:[AN],grad:1,d:"Lebesgue measure and integration."},
+{id:"18.155",s:"Diff. analysis",t:"Differential Analysis I",a:84,p:[["18.102","18.103"]],grad:1,d:"Distributions and the modern theory of PDEs."},
+{id:"18.116",s:"Riemann surfaces",t:"Riemann Surfaces",a:82,p:[["18.112"]],grad:1,d:"Complex analysis on surfaces."},
+{id:"18.104",s:"Analysis sem.",t:"Seminar in Analysis",a:86,p:[AN],d:"Students research a topic in analysis and present it. Communication-intensive."},
+{id:"18.994",s:"Geometry sem.",t:"Seminar in Geometry",a:95,p:[LA,AN],d:"Students research a topic in geometry and present it. Communication-intensive."},
+{id:"18.904",s:"Topology sem.",t:"Seminar in Topology",a:92,p:[["18.901"]],d:"Students research a topic in topology and present it. Communication-intensive."},
+{id:"18.905",s:"Alg. topology",t:"Algebraic Topology I",a:90,p:[["18.901"],["18.701","18.703"]],grad:1,d:"Homology and cohomology."},
+{id:"18.906",s:"Homotopy",t:"Homotopical Methods in Algebraic Topology",a:90,p:[["18.905"]],grad:1,d:"Homotopy theory."},
+{id:"18.952",s:"Diff. forms",t:"Theory of Differential Forms",a:90,p:[["18.101"],["18.700","18.701"]],d:"Differential forms and Stokes' theorem on manifolds."},
+{id:"18.965",s:"Manifolds I",t:"Geometry of Manifolds I",a:92,p:[["18.101","18.950","18.952"]],grad:1,d:"Smooth manifolds, vector bundles and de Rham cohomology."},
+{id:"18.966",s:"Manifolds II",t:"Geometry of Manifolds II",a:92,p:[["18.965"]],grad:1,d:"Continuation of 18.965."},
+{id:"18.212",s:"Alg. combin.",t:"Algebraic Combinatorics",a:66,p:[["18.701","18.703"]],d:"Combinatorics through algebra: symmetric functions, posets, enumeration."},
+{id:"18.225",s:"Graph theory",t:"Graph Theory and Additive Combinatorics",a:66,p:[["18.701","18.703"],AN],grad:1,d:"Extremal graph theory and additive combinatorics."},
+{id:"18.226",s:"Prob. methods",t:"Probabilistic Methods in Combinatorics",a:60,p:[["18.211"],["18.600"],AN],grad:1,d:"Using probability to prove combinatorial theorems."},
+{id:"18.455",s:"Adv. comb. optim.",t:"Advanced Combinatorial Optimization",a:44,p:[["18.453"]],grad:1,d:"Continuation of 18.453."},
+{id:"18.204",s:"Discrete sem.",t:"Undergraduate Seminar in Discrete Mathematics",a:46,p:[["18.062J","18.200"],LA],d:"Students research a discrete-math topic and present it. Communication-intensive."},
+{id:"18.434",s:"TCS seminar",t:"Seminar in Theoretical Computer Science",a:53,p:[["18.410J"]],d:"Students present research in theoretical computer science. Communication-intensive."},
+{id:"18.424",s:"Info theory sem.",t:"Seminar in Information Theory",a:36,p:[["18.05","18.600"],LA],d:"A seminar on information theory. Communication-intensive."},
+{id:"18.604",s:"Prob. seminar",t:"Seminar in Probability Theory",a:48,p:[["18.05","18.600"]],d:"Students research a probability topic and present it. Communication-intensive."},
+{id:"18.704",s:"Algebra sem.",t:"Seminar in Algebra",a:75,p:[["18.701","18.703"],["18.701","18.06","18.700"]],d:"Students research an algebra topic and present it. Communication-intensive. Needs 18.701, or 18.703 with linear algebra."},
+{id:"18.784",s:"Number thy sem.",t:"Seminar in Number Theory",a:97,p:[["18.701","18.703"],["18.701","18.06","18.700"]],d:"Students research a number theory topic and present it. Communication-intensive. Needs 18.701, or 18.703 with linear algebra."},
+{id:"18.705",s:"Commutative alg.",t:"Commutative Algebra",a:80,p:[["18.702"]],grad:1,d:"Rings, ideals and modules: the algebra under algebraic geometry and number theory."},
+{id:"18.706",s:"Noncomm. alg.",t:"Noncommutative Algebra",a:77,p:[["18.702"]],grad:1,d:"Noncommutative rings and their modules."},
+{id:"18.715",s:"Rep. theory",t:"Introduction to Representation Theory",a:75,p:[["18.702","18.703"]],d:"How groups and algebras act on vector spaces."},
+{id:"18.721",s:"Alg. geometry",t:"Introduction to Algebraic Geometry",a:87,p:[["18.702"],["18.901"]],d:"Geometry of solution sets of polynomial equations."},
+{id:"18.725",s:"Alg. geometry I",t:"Algebraic Geometry I",a:86,p:[],c:[["18.705"]],grad:1,d:"Graduate algebraic geometry."},
+{id:"18.745",s:"Lie groups I",t:"Lie Groups and Lie Algebras I",a:79,p:[["18.701","18.703"],AN],grad:1,d:"Continuous symmetry groups and their algebras."},
+{id:"18.755",s:"Lie groups II",t:"Lie Groups and Lie Algebras II",a:80,p:[["18.745"]],grad:1,d:"Continuation of 18.745."},
+{id:"18.782",s:"Arith. geometry",t:"Introduction to Arithmetic Geometry",a:97,p:[["18.702"]],d:"Number theory through geometry: rational points on curves."},
+{id:"18.783",s:"Elliptic curves",t:"Elliptic Curves",a:98,p:[["18.702","18.703"]],d:"The arithmetic of elliptic curves, with computation."},
+{id:"18.785",s:"Number theory I",t:"Number Theory I",a:98,p:[],c:[["18.705"]],grad:1,d:"Graduate algebraic number theory."},
+{id:"18.504",s:"Logic seminar",t:"Seminar in Logic",a:81,p:[["18.06","18.510","18.700","18.701"],AN],d:"Students research a logic topic and present it. Communication-intensive."},
+{id:"18.384",s:"Phys. math sem.",t:"Undergraduate Seminar in Physical Mathematics",a:12,p:[["18.300","18.354J"]],d:"Students research a topic in physical applied math and present it. Communication-intensive."},
+{id:"18.355",s:"Fluid mechanics",t:"Fluid Mechanics",a:10,p:[["18.354J"]],grad:1,d:"Fluid mechanics for applied mathematicians."},
+{id:"18.305",s:"Adv. analytic",t:"Advanced Analytic Methods in Science and Engineering",a:14,p:[["18.04","18.112"]],grad:1,d:"Asymptotics and perturbation methods."},
+{id:"18.306",s:"Adv. PDEs",t:"Advanced Partial Differential Equations with Applications",a:16,p:[["18.03"],["18.04","18.112"]],grad:1,d:"Advanced PDE methods for applications."},
+{id:"18.336J",s:"Fast methods",t:"Fast Methods for Partial Differential and Integral Equations",a:22,p:[["18.335J"]],grad:1,d:"Fast algorithms for large PDE and integral-equation problems."},
+{id:"18.821",s:"Project lab",t:"Project Laboratory in Mathematics",a:60,p:[],two:1,d:"Small teams work on open-ended problems and write them up as papers. Communication-intensive. Needs two math subjects numbered 18.100 or above. The roadmaps suggest it for every field."}
+];
+const M=Object.fromEntries(N.map(n=>[n.id,n]));
+
+// Study resources. o = OpenCourseWare course slug, u = other web page, b = standard textbook (no link).
+const RES={
+"18.01":[["o","18-01sc-single-variable-calculus-fall-2010","Single Variable Calculus, self-paced OCW Scholar version","Fall 2010"],["o","18-01-calculus-i-single-variable-calculus-fall-2020","Calculus I: Single Variable Calculus","Fall 2020"],["o","res-18-001-calculus-fall-2023","Gilbert Strang's Calculus, free open textbook","2023"],["o","res-18-005-highlights-of-calculus-spring-2010","Highlights of Calculus, short videos by Strang","2010"]],
+"18.02":[["o","18-02sc-multivariable-calculus-fall-2010","Multivariable Calculus, self-paced OCW Scholar version","Fall 2010"],["o","18-02-multivariable-calculus-fall-2007","Multivariable Calculus, full lecture videos","Fall 2007"],["o","res-18-016-multivariable-calculus-recitation-notes-fall-2024","Multivariable Calculus Recitation Notes","2024"]],
+"8.02":[["o","8-02-physics-ii-electricity-and-magnetism-spring-2007","Physics II: Electricity and Magnetism","Spring 2007"]],
+"6.100A":[["o","6-100l-introduction-to-cs-and-programming-using-python-fall-2022","Introduction to CS and Programming using Python (6.100L, full-term version)","Fall 2022"],["o","6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016","Intro to CS and Programming in Python (6.0001, earlier number)","Fall 2016"]],
+"6.1210":[["o","6-006-introduction-to-algorithms-spring-2020","Introduction to Algorithms (6.006, earlier number)","Spring 2020"]],
+"18.03":[["o","18-03sc-differential-equations-fall-2011","Differential Equations, self-paced OCW Scholar version","Fall 2011"],["o","18-03-differential-equations-spring-2010","Differential Equations, full lecture videos","Spring 2010"],["o","res-18-009-learn-differential-equations-up-close-with-gilbert-strang-and-cleve-moler-fall-2015","Learn Differential Equations, videos with Strang and Moler","2015"]],
+"18.062J":[["o","6-1200j-mathematics-for-computer-science-spring-2024","Mathematics for Computer Science","Spring 2024"],["o","6-042j-mathematics-for-computer-science-spring-2015","Mathematics for Computer Science (6.042J, earlier number)","Spring 2015"],["b","Lehman, Leighton and Meyer, Mathematics for Computer Science (free text, linked from the OCW pages)"]],
+"18.04":[["o","18-04-complex-variables-with-applications-spring-2018","Complex Variables with Applications","Spring 2018"]],
+"18.300":[["o","18-311-principles-of-applied-mathematics-spring-2014","Principles of Applied Mathematics (18.311, earlier number)","Spring 2014"]],
+"18.330":[["o","18-330-introduction-to-numerical-analysis-spring-2012","Introduction to Numerical Analysis","Spring 2012"]],
+"18.05":[["o","18-05-introduction-to-probability-and-statistics-spring-2022","Introduction to Probability and Statistics","Spring 2022"]],
+"18.06":[["o","18-06sc-linear-algebra-fall-2011","Linear Algebra, self-paced OCW Scholar version","Fall 2011"],["o","18-06-linear-algebra-spring-2010","Linear Algebra, Strang's famous lecture videos","Spring 2010"],["o","res-18-010-a-2020-vision-of-linear-algebra-spring-2020","A 2020 Vision of Linear Algebra, short videos by Strang","2020"],["u","https://math.mit.edu/~gs/linearalgebra/","Strang's textbook site: Introduction to Linear Algebra",""]],
+"18.065":[["o","18-065-matrix-methods-in-data-analysis-signal-processing-and-machine-learning-spring-2018","Matrix Methods in Data Analysis, Signal Processing, and Machine Learning","Spring 2018"]],
+"18.600":[["o","18-600-probability-and-random-variables-fall-2019","Probability and Random Variables","Fall 2019"],["o","18-440-probability-and-random-variables-spring-2014","Probability and Random Variables (18.440, earlier number)","Spring 2014"],["b","Sheldon Ross, A First Course in Probability"]],
+"18.200":[["o","18-200-principles-of-discrete-applied-mathematics-spring-2024","Principles of Discrete Applied Mathematics","Spring 2024"],["o","18-310-principles-of-discrete-applied-mathematics-fall-2013","Principles of Discrete Applied Mathematics (18.310, earlier number)","Fall 2013"]],
+"18.642":[["o","18-642-topics-in-mathematics-with-applications-in-finance-fall-2024","Topics in Mathematics with Applications in Finance","Fall 2024"],["o","18-s096-topics-in-mathematics-with-applications-in-finance-fall-2013","Same subject as 18.S096, with lecture videos","Fall 2013"]],
+"18.700":[["o","18-700-linear-algebra-fall-2013","Linear Algebra","Fall 2013"]],
+"18.703":[["o","18-703-modern-algebra-spring-2013","Modern Algebra","Spring 2013"]],
+"18.900":[["o","18-900-geometry-and-topology-in-the-plane-spring-2023","Geometry and Topology in the Plane","Spring 2023"]],
+"18.100":[["o","18-100a-real-analysis-fall-2020","Real Analysis (18.100A), with lecture videos","Fall 2020"],["o","18-100b-real-analysis-spring-2025","Real Analysis (18.100B)","Spring 2025"],["o","18-100c-real-analysis-fall-2012","Real Analysis (18.100C, the earlier writing-intensive version)","Fall 2012"]],
+"18.781":[["o","18-781-theory-of-numbers-spring-2012","Theory of Numbers","Spring 2012"]],
+"18.353J":[["o","18-353j-nonlinear-dynamics-i-chaos-fall-2012","Nonlinear Dynamics I: Chaos","Fall 2012"]],
+"18.354J":[["o","18-354j-nonlinear-dynamics-ii-continuum-systems-spring-2015","Nonlinear Dynamics II: Continuum Systems","Spring 2015"]],
+"18.303":[["o","18-303-linear-partial-differential-equations-analysis-and-numerics-fall-2014","Linear Partial Differential Equations: Analysis and Numerics","Fall 2014"]],
+"18.335J":[["o","18-335j-introduction-to-numerical-methods-spring-2019","Introduction to Numerical Methods","Spring 2019"]],
+"18.337J":[["o","18-337j-parallel-computing-fall-2011","Parallel Computing (earlier version of this subject)","Fall 2011"],["o","18-s191-introduction-to-computational-thinking-fall-2022","Introduction to Computational Thinking with Julia (related)","Fall 2022"]],
+"18.650":[["o","18-650-statistics-for-applications-fall-2016","Statistics for Applications, with lecture videos","Fall 2016"]],
+"18.615":[["o","18-445-introduction-to-stochastic-processes-spring-2015","Introduction to Stochastic Processes (18.445, earlier number)","Spring 2015"]],
+"18.211":[["o","18-314-combinatorial-analysis-fall-2014","Combinatorial Analysis (18.314, earlier number)","Fall 2014"]],
+"18.453":[["o","18-433-combinatorial-optimization-fall-2003","Combinatorial Optimization (18.433, earlier number)","Fall 2003"]],
+"18.404":[["o","18-404j-theory-of-computation-fall-2020","Theory of Computation, Sipser's lecture videos","Fall 2020"],["b","Michael Sipser, Introduction to the Theory of Computation"]],
+"18.400J":[["o","6-045j-automata-computability-and-complexity-spring-2011","Automata, Computability, and Complexity (6.045J, earlier number)","Spring 2011"]],
+"18.410J":[["o","6-046j-design-and-analysis-of-algorithms-spring-2015","Design and Analysis of Algorithms (6.046J, earlier number), with videos","Spring 2015"],["b","Cormen, Leiserson, Rivest and Stein, Introduction to Algorithms"]],
+"18.415J":[["o","6-854j-advanced-algorithms-fall-2005","Advanced Algorithms (6.854J)","Fall 2005"]],
+"18.435J":[["o","18-435j-quantum-computation-fall-2003","Quantum Computation","Fall 2003"]],
+"18.417":[["o","18-417-introduction-to-computational-molecular-biology-fall-2004","Introduction to Computational Molecular Biology","Fall 2004"]],
+"18.701":[["o","18-701-algebra-i-fall-2010","Algebra I","Fall 2010"],["o","res-18-011-algebra-i-student-notes-fall-2021","Algebra I Student Notes","Fall 2021"],["b","Michael Artin, Algebra"]],
+"18.702":[["o","18-702-algebra-ii-spring-2011","Algebra II","Spring 2011"],["o","res-18-012-algebra-ii-student-notes-spring-2022","Algebra II Student Notes","Spring 2022"],["b","Michael Artin, Algebra"]],
+"18.675":[["o","18-175-theory-of-probability-spring-2014","Theory of Probability (18.175, earlier number)","Spring 2014"]],
+"18.677":[["o","18-177-universal-random-structures-in-2d-fall-2015","Universal Random Structures in 2D (18.177, a past topic of this subject)","Fall 2015"]],
+"18.655":[["o","18-655-mathematical-statistics-spring-2016","Mathematical Statistics","Spring 2016"]],
+"18.657":[["o","18-657-mathematics-of-machine-learning-fall-2015","Mathematics of Machine Learning (a past topic)","Fall 2015"]],
+"18.338":[["o","18-338j-infinite-random-matrix-theory-fall-2004","Infinite Random Matrix Theory","Fall 2004"]],
+"18.901":[["o","18-901-introduction-to-topology-fall-2004","Introduction to Topology","Fall 2004"],["b","James Munkres, Topology"]],
+"18.101":[["o","18-101-analysis-ii-fall-2005","Analysis II (earlier title of this subject)","Fall 2005"]],
+"18.102":[["o","18-102-introduction-to-functional-analysis-spring-2021","Introduction to Functional Analysis, with lecture videos","Spring 2021"]],
+"18.103":[["o","18-103-fourier-analysis-fall-2013","Fourier Analysis","Fall 2013"],["o","res-18-015-topics-in-fourier-analysis-spring-2024","Topics in Fourier Analysis","2024"]],
+"18.112":[["o","18-112-functions-of-a-complex-variable-fall-2008","Functions of a Complex Variable","Fall 2008"]],
+"18.152":[["o","18-152-introduction-to-partial-differential-equations-fall-2011","Introduction to Partial Differential Equations","Fall 2011"]],
+"18.950":[["o","18-950-differential-geometry-fall-2008","Differential Geometry","Fall 2008"]],
+"18.125":[["o","18-125-measure-and-integration-fall-2003","Measure and Integration","Fall 2003"]],
+"18.155":[["o","18-155-differential-analysis-fall-2004","Differential Analysis","Fall 2004"]],
+"18.104":[["o","18-104-seminar-in-analysis-applications-to-number-theory-fall-2006","Seminar in Analysis: Applications to Number Theory","Fall 2006"]],
+"18.994":[["o","18-994-seminar-in-geometry-fall-2004","Seminar in Geometry","Fall 2004"]],
+"18.904":[["o","18-904-seminar-in-topology-spring-2011","Seminar in Topology","Spring 2011"]],
+"18.905":[["o","18-905-algebraic-topology-i-fall-2016","Algebraic Topology I","Fall 2016"]],
+"18.906":[["o","18-906-algebraic-topology-ii-spring-2020","Algebraic Topology II (earlier title of this subject)","Spring 2020"]],
+"18.965":[["o","18-965-geometry-of-manifolds-fall-2004","Geometry of Manifolds","Fall 2004"]],
+"18.966":[["o","18-966-geometry-of-manifolds-spring-2007","Geometry of Manifolds II","Spring 2007"]],
+"18.212":[["o","18-212-algebraic-combinatorics-spring-2019","Algebraic Combinatorics","Spring 2019"]],
+"18.225":[["o","18-225-graph-theory-and-additive-combinatorics-fall-2023","Graph Theory and Additive Combinatorics, with lecture videos","Fall 2023"]],
+"18.226":[["o","18-226-probabilistic-methods-in-combinatorics-fall-2022","Probabilistic Methods in Combinatorics","Fall 2022"]],
+"18.204":[["o","18-304-undergraduate-seminar-in-discrete-mathematics-spring-2015","Undergraduate Seminar in Discrete Mathematics (18.304, earlier number)","Spring 2015"]],
+"18.704":[["o","18-704-seminar-in-algebra-and-number-theory-rational-points-on-elliptic-curves-fall-2004","Seminar in Algebra and Number Theory: Rational Points on Elliptic Curves","Fall 2004"],["o","18-704-seminar-in-algebra-and-number-theory-computational-commutative-algebra-and-algebraic-geometry-fall-2008","Seminar: Computational Commutative Algebra and Algebraic Geometry","Fall 2008"]],
+"18.784":[["o","18-704-seminar-in-algebra-and-number-theory-rational-points-on-elliptic-curves-fall-2004","Rational Points on Elliptic Curves (from the earlier combined algebra and number theory seminar)","Fall 2004"]],
+"18.705":[["o","18-705-commutative-algebra-fall-2008","Commutative Algebra","Fall 2008"]],
+"18.706":[["o","18-706-noncommutative-algebra-spring-2023","Noncommutative Algebra","Spring 2023"]],
+"18.715":[["o","18-712-introduction-to-representation-theory-fall-2010","Introduction to Representation Theory (18.712, earlier number)","Fall 2010"]],
+"18.725":[["o","18-725-algebraic-geometry-fall-2015","Algebraic Geometry","Fall 2015"]],
+"18.745":[["o","18-745-lie-groups-and-lie-algebras-i-fall-2020","Lie Groups and Lie Algebras I","Fall 2020"]],
+"18.755":[["o","18-755-lie-groups-and-lie-algebras-ii-spring-2024","Lie Groups and Lie Algebras II","Spring 2024"]],
+"18.782":[["o","18-782-introduction-to-arithmetic-geometry-fall-2013","Introduction to Arithmetic Geometry","Fall 2013"]],
+"18.783":[["o","18-783-elliptic-curves-fall-2025","Elliptic Curves","Fall 2025"],["o","18-783-elliptic-curves-spring-2021","Elliptic Curves, with lecture videos","Spring 2021"]],
+"18.785":[["o","18-785-number-theory-i-fall-2021","Number Theory I","Fall 2021"]],
+"18.305":[["o","18-305-advanced-analytic-methods-in-science-and-engineering-fall-2004","Advanced Analytic Methods in Science and Engineering","Fall 2004"]],
+"18.306":[["o","18-306-advanced-partial-differential-equations-with-applications-fall-2009","Advanced Partial Differential Equations with Applications","Fall 2009"]],
+"18.336J":[["o","18-336-numerical-methods-for-partial-differential-equations-spring-2009","Numerical Methods for Partial Differential Equations","Spring 2009"]],
+"18.821":[["o","18-821-project-laboratory-in-mathematics-spring-2013","Project Laboratory in Mathematics","Spring 2013"]]
+};
+const resUrl=r=>r[0]==="o"?"https://ocw.mit.edu/courses/"+r[1]+"/":r[0]==="u"?r[1]:null;
+const primary=id=>(RES[id]||[]).find(r=>r[0]!=="b");
+
+const FIELDS={
+ general:{name:"General mathematics",side:"both",b:"A broad mix with no single specialty. Good if you don't know yet.",core:{},els:["18.821","18.702","18.901","18.650","18.211","18.330"],st:[[],[],[]]},
+ algebra:{name:"Algebra",side:"pure",b:"Groups, rings, fields and symmetry; leads to representation theory and algebraic geometry.",core:{LA:"18.700",ADV:"18.701"},els:["18.704","18.702","18.715","18.782","18.783","18.781"],
+  st:[["18.090","18.700","18.703","18.701","18.702"],["18.704","18.715","18.721","18.782"],["18.705","18.706","18.725","18.745","18.755","18.783"]]},
+ analysis:{name:"Analysis & geometry",side:"pure",b:"The rigorous theory behind calculus, extended to infinite dimensions, PDEs and manifolds.",core:{LA:"18.700",ADV:"18.950"},els:["18.104","18.101","18.102","18.103","18.112","18.152"],
+  st:[["18.090","18.100","18.700","18.701"],["18.101","18.102","18.103","18.104","18.112","18.152","18.950","18.994"],["18.125","18.155","18.952","18.965","18.966"]]},
+ logic:{name:"Logic",side:"pure",b:"Proof, computability and set theory. Pairs well with MIT Philosophy logic subjects.",core:{LA:"18.700",ADV:"18.510"},els:["18.504","18.404","18.701","18.702","18.901","18.781"],
+  st:[["18.090","18.510","18.701","18.700","18.703"],["18.400J","18.404","18.504"],[]]},
+ numbertheory:{name:"Number theory",side:"pure",b:"Primes, equations in whole numbers, and the algebra and geometry used to study them.",core:{LA:"18.700",ADV:"18.781"},els:["18.784","18.701","18.702","18.782","18.783","18.715"],
+  st:[["18.090","18.700","18.703","18.701","18.702","18.781"],["18.704","18.721","18.782","18.784"],["18.705","18.725","18.783","18.785"]]},
+ probstat:{name:"Probability & statistics",side:"pure",b:"Randomness made rigorous, from Markov chains to stochastic calculus.",core:{PS:"18.600",ADV:"18.701"},els:["18.604","18.650","18.615","18.642","18.102","18.675"],
+  st:[["18.090","18.065","18.100","18.600","18.700","18.701"],["18.102","18.103","18.112","18.200","18.211","18.615","18.642","18.650"],["18.125","18.675","18.676","18.677","18.338","18.416J","18.424","18.655","18.657"]]},
+ topology:{name:"Topology & geometry",side:"pure",b:"Shapes up to continuous deformation, and smooth spaces called manifolds.",core:{LA:"18.700",ADV:"18.901"},els:["18.904","18.701","18.702","18.101","18.950","18.952"],
+  st:[["18.090","18.100","18.112","18.701","18.702","18.700","18.703","18.900","18.950"],["18.101","18.102","18.901","18.904","18.952","18.994"],["18.116","18.155","18.721","18.755","18.782","18.905","18.906","18.965","18.966"]]},
+ combinatorics:{name:"Combinatorics",side:"applied",b:"Counting, graphs and discrete structures, with links to algebra, probability and computer science.",core:{ADV:"18.701"},els:["18.204","18.200","18.211","18.212","18.453","18.702"],
+  st:[["18.090","18.100","18.200","18.400J","18.600","18.701","18.702","18.700","18.703","18.900"],["18.204","18.211","18.212","18.112","18.404","18.410J","18.453","18.721","18.781","18.901","18.950"],["18.225","18.226","18.338","18.455","18.615","18.705","18.715","18.725","18.745"]]},
+ cs:{name:"Theoretical computer science",side:"applied",b:"Algorithms, complexity and cryptography. Add EECS programming subjects alongside.",core:{ADV:"18.404"},els:["18.434","18.062J","18.410J","18.211","18.453","18.424"],
+  st:[["18.06","18.700","18.062J","18.090","18.200","18.330","18.600","18.650","18.701"],["18.204","18.211","18.400J","18.404","18.410J","18.424","18.434","18.453"],["18.337J","18.415J","18.416J","18.435J","18.455","18.783"]]},
+ econ:{name:"Economics & finance",side:"applied",b:"Probability, statistics and optimization for markets. Take economics (14) or management (15) subjects too.",core:{ADV:"18.330"},els:["18.650","18.642","18.615","18.065","18.604","18.675"],
+  st:[["18.03","18.05","18.06","18.700","18.065","18.090","18.300","18.330","18.600","18.650"],["18.100","18.152","18.303","18.453","18.642"],["18.103","18.125","18.675","18.676","18.677","18.335J","18.337J","18.338","18.352J","18.353J","18.355","18.615","18.655"]]},
+ cse:{name:"Computational science",side:"applied",b:"Numerical methods and scientific computing. Add computer science subjects alongside.",core:{ADV:"18.330"},els:["18.821","18.065","18.303","18.335J","18.337J","18.650"],
+  st:[["18.03","18.06","18.700","18.04","18.05","18.062J","18.065","18.090","18.200","18.303","18.330","18.600","18.650"],["18.100","18.404","18.434","18.410J","18.701"],["18.335J","18.336J","18.337J","18.338","18.415J"]]},
+ physical:{name:"Physical applied math",side:"applied",b:"Differential equations for fluids, waves and nonlinear systems. Take 2–3 physics or engineering subjects too.",core:{ADV:"18.330"},els:["18.384","18.300","18.04","18.303","18.353J","18.354J"],
+  st:[["18.03","18.04","18.06","18.700","18.090","18.300","18.303","18.330","18.352J","18.353J","18.354J","18.600","18.650"],["18.100","18.112","18.152","18.384","18.417"],["18.102","18.103","18.305","18.306","18.335J","18.355"]]},
+ datasci:{name:"Statistics & data science",side:"applied",b:"Statistics, matrix methods and probability for working with data.",core:{ADV:"18.330"},els:["18.204","18.200","18.650","18.065","18.642","18.615"],
+  st:[["18.05","18.06","18.700","18.062J","18.065","18.090","18.100","18.200","18.330","18.600","18.650","18.701"],["18.102","18.112","18.204","18.642"],["18.125","18.675","18.676","18.335J","18.338","18.615","18.657"]]}
+};
+const CORE26=[
+ {k:"DE",label:"Differential equations",o:["18.03","18.152","18.303"],def:"18.03"},
+ {k:"LA",label:"Linear algebra",o:["18.06","18.700","18.701"],def:"18.06"},
+ {k:"AN",label:"Analysis",o:["18.100"],def:"18.100"},
+ {k:"PS",label:"Probability & statistics",o:["18.05","18.600"],def:"18.600"},
+ {k:"ADV",label:"Advanced mathematical subject",o:["18.330","18.404","18.410J","18.510","18.701","18.702","18.703","18.710","18.781","18.901","18.950"],def:"18.701"}];
+const G1=["18.204","18.211","18.212","18.400J","18.404","18.410J","18.424","18.434","18.453","18.600","18.650"], G2=["18.303","18.353J","18.354J","18.384","18.352J","18.330"];
+const CIMA=["18.104","18.204","18.384","18.424","18.434","18.504","18.604","18.704","18.784","18.821","18.904","18.994"];
+const SEM=["18.104","18.504","18.704","18.784","18.904","18.994"];
+const OVERLAP=[["18.06","18.700"],["18.05","18.600"],["18.701","18.703"],["18.400J","18.404"],["18.04","18.112"]];
+const MATH=N.filter(n=>n.id.startsWith("18.")&&!["18.01","18.02"].includes(n.id)).map(n=>n.id);
+
+const isAdv=id=>["18.090","18.085","18.C21","18.C25"].includes(id)||(/^18\.\d/.test(id)&&+id[3]>=1);
+const lvl=n=>n.ext?"ext":(n.id==="18.01"||n.id==="18.02")?"gir":(n.id==="18.090"||n.id==="18.062J")?"bridge":isAdv(n.id)?"adv":"low";
+const groups=n=>[...(n.p||[]),...(n.c||[])];
+const kids=id=>N.filter(n=>groups(n).some(g=>g.includes(id)));
+const ocw=id=>"https://ocw.mit.edu/search/?q="+encodeURIComponent(id.replace(/J$/,""));
+const catUrl=id=>"https://catalog.mit.edu/subjects/"+id.split(".")[0]+"/";
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// Shortest prerequisite closure: for every OR-group not yet satisfied, add the alternative that brings in the fewest new subjects.
+const naiveMemo={};
+function naive(id){
+  if(naiveMemo[id]) return naiveMemo[id];
+  const s=new Set([id]), n=M[id];
+  if(n) groups(n).forEach(g=>{
+    let best=null; g.filter(a=>M[a]).forEach(a=>{const c=naive(a);if(!best||c.size<best.size)best=c});
+    if(best) best.forEach(x=>s.add(x));
+  });
+  return naiveMemo[id]=s;
+}
+function close(seed){
+  const S=new Set(seed), added=[], stack=[...seed];
+  while(stack.length){
+    const n=M[stack.pop()]; if(!n) continue;
+    groups(n).forEach(g=>{
+      if(g.some(a=>S.has(a))) return;
+      let best=null,bc=1e9;
+      g.filter(a=>M[a]).forEach(a=>{const c=[...naive(a)].filter(x=>!S.has(x)).length;if(c<bc){bc=c;best=a}});
+      if(best){S.add(best);added.push(best);stack.push(best)}
+    });
+  }
+  return {S,added};
+}
+// Term-by-term schedule: 8 terms, one math subject per term in year one, two after.
+const CAP=[1,1,2,2,2,2,2,2];
+function schedule(S){
+  const sem={}, load={}, ids=[...S];
+  const fixed={"18.01":0,"18.02":1,"6.100A":0,"8.02":1};
+  ids.forEach(id=>{if(id in fixed) sem[id]=fixed[id]});
+  let guard=0;
+  while(ids.some(id=>!(id in sem))&&guard++<200){
+    ids.filter(id=>!(id in sem)).sort((a,b)=>depth(a)-depth(b)).forEach(id=>{
+      const n=M[id]; let e=0, ok=true;
+      (n.p||[]).forEach(g=>{const h=g.filter(a=>S.has(a));if(!h.length)return;const d=h.filter(a=>a in sem);if(!d.length){ok=false;return}e=Math.max(e,Math.min(...d.map(a=>sem[a]))+1)});
+      (n.c||[]).forEach(g=>{const h=g.filter(a=>S.has(a));if(!h.length)return;const d=h.filter(a=>a in sem);if(!d.length){ok=false;return}e=Math.max(e,Math.min(...d.map(a=>sem[a])))});
+      if(n.two){const adv=ids.filter(x=>x!==id&&isAdv(x)&&x!=="18.090"&&x in sem).map(x=>sem[x]).sort((a,b)=>a-b);if(adv.length<2){ok=adv.length>=ids.filter(x=>x!==id&&isAdv(x)&&x!=="18.090").length;if(!ok)return;}else e=Math.max(e,adv[1]+1)}
+      if(!ok) return;
+      const counts=id.startsWith("18.");
+      let s=e; while(counts&&(load[s]||0)>=(CAP[s]??2)) s++;
+      sem[id]=s; if(counts) load[s]=(load[s]||0)+1;
+    });
+  }
+  return sem;
+}
+const depMemo={};
+function depth(id){
+  if(id in depMemo) return depMemo[id];
+  const n=M[id]; if(!n) return 0; depMemo[id]=0;
+  let d=0;
+  // Every listed prerequisite, including each OR alternative, sits on a higher row, so no line runs sideways or up.
+  (n.p||[]).forEach(g=>g.filter(a=>M[a]).forEach(a=>d=Math.max(d,1+depth(a))));
+  (n.c||[]).forEach(g=>g.filter(a=>M[a]).forEach(a=>d=Math.max(d,depth(a))));
+  if(n.two) d=Math.max(d,3);
+  return depMemo[id]=d;
+}
+
+// ---------- Tracks ----------
+function buildTrack(key){
+  if(FIELDS[key]){
+    const f=FIELDS[key], els=f.els;
+    const slots=CORE26.map(c=>({label:c.label,o:c.o,def:f.core[c.k]||c.def,role:"core"}));
+    els.forEach((e,i)=>slots.push({label:"Elective "+(i+1),o:MATH,def:e,role:"elective",field:key}));
+    return {name:f.name+" (Fall 2026+ rules)",rules:"2026",blurb:f.b,slots,field:key};
+  }
+  if(key==="pure") return {name:"Pure Math option",rules:"pre",blurb:"The older Pure option, for students who entered before Fall 2026. Fixed core, then your choice of analysis subject and seminar.",slots:[
+    {label:"Differential equations",o:["18.03","18.152","18.303"],def:"18.03",role:"core"},
+    {label:"Real analysis",o:["18.100"],def:"18.100",role:"core"},{label:"Algebra I",o:["18.701"],def:"18.701",role:"core"},
+    {label:"Algebra II",o:["18.702"],def:"18.702",role:"core"},{label:"Topology",o:["18.901"],def:"18.901",role:"core"},
+    {label:"One of 18.101 / 102 / 103",o:["18.101","18.102","18.103"],def:"18.101",role:"core"},
+    {label:"Undergraduate seminar",o:SEM,def:"18.904",role:"core"},
+    {label:"Advanced elective 1",o:MATH.filter(isAdv),def:"18.102",role:"elective"},{label:"Advanced elective 2",o:MATH.filter(isAdv),def:"18.950",role:"elective"}]};
+  if(key==="applied") return {name:"Applied Math option",rules:"pre",blurb:"The older Applied option, for students who entered before Fall 2026. Five core subjects, then four from two groups.",slots:[
+    {label:"Differential equations",o:["18.03","18.152","18.303"],def:"18.03",role:"core"},
+    {label:"Complex variables",o:["18.04","18.112"],def:"18.04",role:"core"},
+    {label:"Linear algebra",o:["18.06","18.700","18.701"],def:"18.06",role:"core"},
+    {label:"Discrete applied math",o:["18.200"],def:"18.200",role:"core"},{label:"Continuum applied math",o:["18.300"],def:"18.300",role:"core"},
+    {label:"Group 1 (discrete, CS, probability)",o:G1,def:"18.204",role:"elective"},
+    {label:"Group 2 (continuum, numerics)",o:G2,def:"18.303",role:"elective"},
+    {label:"Group 1 or 2",o:[...G1,...G2],def:"18.650",role:"elective"},{label:"Group 1 or 2",o:[...G1,...G2],def:"18.330",role:"elective"}]};
+  if(key==="c18") return {name:"Course 18C: Mathematics with Computer Science",rules:"pre",blurb:"The joint math and computer science major as listed on the pre-Fall 2026 page. Half the work is EECS programming and systems.",slots:[
+    {label:"Differential equations",o:["18.03","18.152","18.303"],def:"18.03",role:"core"},
+    {label:"Linear algebra",o:["18.06","18.700","18.701"],def:"18.06",role:"core"},
+    {label:"Algorithms",o:["18.410J"],def:"18.410J",role:"core"},
+    {label:"Discrete math",o:["18.062J","18.200"],def:"18.062J",role:"core"},
+    {label:"Theory of computation",o:["18.400J","18.404"],def:"18.404",role:"core"},
+    {label:"Python",o:["6.100A"],def:"6.100A",role:"core"},{label:"Programming",o:["6.1010"],def:"6.1010",role:"core"},{label:"Intro algorithms",o:["6.1210"],def:"6.1210",role:"core"},
+    ...["18.100","18.600","18.211","18.434"].map((d,i)=>({label:"Math elective "+(i+1),o:MATH,def:d,role:"elective",field:"cs"}))],
+    text:["One of 6.1020, 6.1800, 6.3900 or 6.4110 (software, systems or machine learning).","One more EECS subject of at least 12 units."]};
+}
+function checks(track,picks,S){
+  const math=[...S].filter(id=>id.startsWith("18.")&&!["18.01","18.02"].includes(id));
+  const adv=math.filter(isAdv).length, out=[];
+  const dup=picks.filter((p,i)=>p&&picks.indexOf(p)!==i);
+  if(dup.length) out.push([false,"Pick a different subject for each slot ("+[...new Set(dup)].join(", ")+" appears twice)."]);
+  OVERLAP.forEach(([a,b])=>{if(S.has(a)&&S.has(b)) out.push([false,`${a} and ${b} overlap a lot, so the department may not count both.`])});
+  const cimA=math.filter(x=>CIMA.includes(x));
+  const cimB=S.has("18.100")||S.has("18.200");
+  const cimOk=cimA.length>=2||(cimA.length>=1&&cimB);
+  if(track.rules==="2026"){
+    out.unshift([math.length>=11,`${math.length} math subjects (11 needed).`],[adv>=7,`${adv} advanced subjects, numbered 18.1xx and up or 18.090 (7 needed).`]);
+  } else if(track.name.startsWith("Applied")){
+    const ex=picks.slice(5); out.unshift([ex.some(x=>G1.includes(x))&&ex.some(x=>G2.includes(x)),"At least one subject from each group."]);
+  } else if(track.name.startsWith("Pure")){
+    out.unshift([picks.slice(7).every(isAdv),"Both extra electives are advanced."]);
+  } else {
+    out.unshift([math.filter(isAdv).length>=5,`${math.filter(isAdv).length} advanced math subjects (5 needed).`]);
+  }
+  out.push([cimOk,cimOk?`Communication requirement: ${cimA.join(", ")}${cimA.length<2?" plus 18.100P/Q or 18.200":""}.`:"Two communication-intensive (CI-M) subjects: add a seminar, or take 18.100P/Q or 18.200 plus one seminar."]);
+  return out;
+}
+
+// ---------- State ----------
+let tab="plan", trackKey="algebra", over={}, target="18.721", exploreField="", focus=null, zoom=0.8, cmpA="algebra", cmpB="cs", cmp=null;
+try{const s=JSON.parse(localStorage.getItem("c18atlas")||"{}");if(s.trackKey&&(FIELDS[s.trackKey]||["pure","applied","c18"].includes(s.trackKey)))trackKey=s.trackKey;if(s.target&&M[s.target])target=s.target;}catch(e){}
+const h=(location.hash||"").slice(1); if(["plan","path","compare","explore"].includes(h)) tab=h;
+const persist=()=>{try{localStorage.setItem("c18atlas",JSON.stringify({trackKey,target}))}catch(e){}};
+let highlight=new Set(), showing="";
+
+// ---------- Views ----------
+const panel=document.getElementById("panel");
+function card(id,role,roleLabel){
+  const n=M[id], p=primary(id), more=(RES[id]||[]).length;
+  return `<div class="cc lvl-${lvl(n)} role-${role}"><button type="button" class="ccb" data-open="${id}"><span class="n">${id}</span><span class="s">${esc(n.s)}</span>${roleLabel?`<span class="r">${roleLabel}</span>`:""}</button>
+    ${p?`<a class="ccl" href="${resUrl(p)}" target="_blank" rel="noopener" title="${esc(p[2])}">Open course ↗</a>${more>1?`<button type="button" class="ccm" data-open="${id}">+${more-1} more</button>`:""}`:`<span class="ccn">No free course online</span>`}</div>`;
+}
+function years(sem,roleOf){
+  const max=Math.max(7,...Object.values(sem)), Y=Math.ceil((max+1)/2), out=[];
+  for(let y=0;y<Y;y++){
+    const t=[0,1].map(k=>{const s=y*2+k, ids=Object.keys(sem).filter(i=>sem[i]===s).sort((a,b)=>depth(a)-depth(b));
+      return `<div class="term"><div class="tn">${k?"Spring":"Fall"}</div>${ids.length?ids.map(i=>card(i,roleOf(i)[0],roleOf(i)[1])).join(""):'<span class="empty">open for other subjects</span>'}</div>`}).join("");
+    out.push(`<div class="year"><h4>Year ${y+1}${y>=4?" (extra)":""}</h4><div class="terms">${t}</div></div>`);
+  }
+  return `<div class="years">${out.join("")}</div>`;
+}
+function optLabel(id){const n=M[id];return `${id} · ${n.s}${n.grad?" (grad)":""}`}
+
+// A track's full subject set: chosen requirements (including any swaps made on the Plan tab) plus everything they need first.
+function planFor(key){
+  const track=buildTrack(key), o=over[key]||{};
+  const picks=track.slots.map((s,i)=>o[i]||s.def);
+  const {S,added}=close(["18.01","18.02",...picks]);
+  return {track,picks,S,added};
+}
+const TRACKS=[...Object.keys(FIELDS).map(k=>[k,FIELDS[k].name+" (current rules)"]),["pure","Pure Math option (pre-2026)"],["applied","Applied Math option (pre-2026)"],["c18","Course 18C: Math with CS (pre-2026)"]];
+
+function viewCompare(){
+  const A=planFor(cmpA), B=planFor(cmpB);
+  const skip=new Set(["18.01","18.02"]);
+  const sort=l=>l.sort((x,y)=>depth(x)-depth(y)||x.localeCompare(y,undefined,{numeric:true}));
+  const onlyA=sort([...A.S].filter(x=>!B.S.has(x)&&!skip.has(x)));
+  const onlyB=sort([...B.S].filter(x=>!A.S.has(x)&&!skip.has(x)));
+  const both=sort([...A.S].filter(x=>B.S.has(x)&&!skip.has(x)));
+  const roleIn=(P,id)=>{const i=P.picks.indexOf(id);return i<0?"needed first":P.track.slots[i].role==="core"?P.track.slots[i].label:"elective"};
+  const col=(title,cls,ids,f)=>`<div class="card cmpcol ${cls}"><h3>${title}</h3><p class="sub">${ids.length} subject${ids.length===1?"":"s"}</p>
+    <div class="cmplist">${ids.length?ids.map(id=>card(id,"cmp",f(id))).join(""):'<span class="empty">Nothing here</span>'}</div></div>`;
+  const sel=(id,v)=>`<select id="${id}">${TRACKS.map(([k,l])=>`<option value="${k}"${k===v?" selected":""}>${esc(l)}</option>`).join("")}</select>`;
+  const mathCount=P=>[...P.S].filter(x=>x.startsWith("18.")&&!skip.has(x)).length;
+  const share=both.filter(x=>x.startsWith("18.")).length;
+  panel.innerHTML=`
+    <p class="lede">Pick two degrees to see which subjects they share and which belong to only one. Each side uses that degree's plan from the Plan tab, including any subjects you swapped there.</p>
+    <div class="pathbar">
+      <div class="search"><label for="cmpA">First degree</label>${sel("cmpA",cmpA)}</div>
+      <button type="button" id="swap" aria-label="Swap the two degrees">⇄ Swap</button>
+      <div class="search"><label for="cmpB">Second degree</label>${sel("cmpB",cmpB)}</div>
+    </div>
+    ${cmpA===cmpB?`<p class="blurb">Both sides are the same degree. Pick a different one on either side.</p>`:`
+    <p class="summary">${esc(A.track.name)} has ${mathCount(A)} math subjects and ${esc(B.track.name)} has ${mathCount(B)}. They share ${share}, so switching from one to the other later would carry those over.</p>`}
+    <div class="cmp">
+      ${col("Only in "+esc(FIELDS[cmpA]?FIELDS[cmpA].name:A.track.name),"ca",onlyA,id=>roleIn(A,id))}
+      ${col("In both","cb",both,id=>{const a=roleIn(A,id),b=roleIn(B,id);return a===b?a:`${a} / ${b}`})}
+      ${col("Only in "+esc(FIELDS[cmpB]?FIELDS[cmpB].name:B.track.name),"cc2",onlyB,id=>roleIn(B,id))}
+    </div>
+    <p class="extra">Both degrees also include 18.01 and 18.02. "Needed first" means the subject isn't a requirement itself but something on the plan requires it. Change any degree's choices on the Plan tab.</p>`;
+  cmp={a:new Set(onlyA),b:new Set(onlyB),both:new Set(both)};
+  highlight=new Set([...A.S,...B.S]);
+  showing=`Blue outline: only in the first degree. Green: only in the second. Amber: in both`;
+}
+
+function viewPlan(){
+  const {track,picks,S,added}=planFor(trackKey), sem=schedule(S);
+  const role={}; picks.forEach((p,i)=>role[p]=role[p]||track.slots[i].role);
+  const roleOf=id=>role[id]==="core"?["core","core"]:role[id]==="elective"?["elective","elective"]:["18.01","18.02"].includes(id)?["gir","GIR"]:["prereq","needed first"];
+  const ch=checks(track,picks,S);
+  const math=[...S].filter(id=>id.startsWith("18.")&&!["18.01","18.02"].includes(id)).length;
+  const ext=[...S].filter(id=>M[id].ext).length;
+  const last=Math.max(...Object.values(sem))+1;
+  const fieldRow=(side,lab)=>`<div class="pickrow"><span class="lab">${lab}</span>${Object.entries(FIELDS).filter(([k,f])=>f.side===side).map(([k,f])=>`<button type="button" class="pill" data-track="${k}" aria-pressed="${trackKey===k}">${f.name}</button>`).join("")}</div>`;
+  const fieldOf=track.field?FIELDS[track.field]:null;
+  const roadmap=fieldOf?new Set(fieldOf.st.flat()):new Set();
+  const slotHtml=track.slots.map((s,i)=>{
+    let opts=s.o.filter(x=>M[x]);
+    const inRoad=opts.filter(x=>roadmap.has(x)), rest=opts.filter(x=>!roadmap.has(x));
+    const mk=list=>list.map(x=>`<option value="${x}"${x===picks[i]?" selected":""}>${esc(optLabel(x))}</option>`).join("");
+    const body=s.role==="elective"&&inRoad.length&&rest.length?`<optgroup label="In the ${fieldOf.name} roadmap">${mk(inRoad)}</optgroup><optgroup label="Any other math subject">${mk(rest)}</optgroup>`:mk(opts);
+    const dup=picks.indexOf(picks[i])!==i;
+    return `<div class="slot${dup?" warn":""}"><label for="slot${i}">${s.label}</label><select id="slot${i}" data-slot="${i}">${body}</select>${dup?'<span class="why">Already used above</span>':""}</div>`;
+  }).join("");
+  panel.innerHTML=`
+    <div class="pickers">
+      ${fieldRow("both","Not sure yet")}
+      ${fieldRow("pure","Pure mathematics: choose a focus (current rules, Fall 2026 and later)")}
+      ${fieldRow("applied","Applied mathematics: choose a focus (current rules)")}
+      <div class="pickrow"><span class="lab">Older options (students who entered before Fall 2026)</span>
+        ${[["pure","Pure Math option"],["applied","Applied Math option"],["c18","Course 18C: Math with CS"]].map(([k,l])=>`<button type="button" class="pill" data-track="${k}" aria-pressed="${trackKey===k}">${l}</button>`).join("")}</div>
+    </div>
+    <p class="blurb"><b>${esc(track.name)}</b><br>${esc(track.blurb)}</p>
+    <div class="plan">
+      <div class="card"><h3>Requirements</h3>
+        <div class="slots">${slotHtml}</div>
+        <ul class="checks">${ch.map(([ok,t])=>`<li><span class="mk ${ok?"y":"n"}">${ok?"✓":"!"}</span><span>${esc(t)}</span></li>`).join("")}</ul>
+        ${track.text?`<p class="extra"><b>Also from EECS:</b> ${track.text.join(" ")}</p>`:""}
+        ${track.rules==="2026"?`<p class="extra">Electives can be any 12-unit Course 18 subject with different content. Swap any slot and the schedule updates.</p>`:""}
+      </div>
+      <div class="card"><p class="summary">${math} math subjects${added.length?`, ${added.filter(a=>!["18.01","18.02"].includes(a)).length} of them or their companions brought in as prerequisites`:""}${ext?`, plus ${ext} outside math`:""}. Finishable in ${last} terms.</p>
+        ${years(sem,roleOf)}
+        <p class="extra">Solid border: a requirement you chose. Dashed: something you need first. Click any subject for details.</p>
+      </div>
+    </div>`;
+  highlight=S; showing=`Highlighted: your ${track.name} plan`;
+}
+
+function viewPath(){
+  const {S}=close([target]), sem=schedule(S);
+  const n=M[target];
+  const before=[...S].filter(x=>x!==target);
+  const decisions=[];
+  [...S].forEach(id=>groups(M[id]).forEach(g=>{
+    const alts=g.filter(a=>M[a]); if(alts.length<2) return;
+    const chosen=alts.find(a=>S.has(a));
+    decisions.push(`<li>For ${chip(id)}: ${alts.map(a=>a===chosen?`<b>${chip(a)}</b>`:chip(a)).join(' <span class="or">or</span> ')}. The bold one gives the shortest route.</li>`);
+  }));
+  const roleOf=id=>id===target?["target","goal"]:["18.01","18.02"].includes(id)?["gir","GIR"]:["prereq",""];
+  const quick=["18.702","18.901","18.721","18.675","18.410J","18.965","18.650","18.384"];
+  panel.innerHTML=`
+    <p class="lede">Pick a subject and see the shortest set of subjects you'd need to take before it, laid out term by term.</p>
+    <div class="pathbar">
+      <div class="search"><label for="target">Where do you want to get to?</label>
+        <select id="target">${N.filter(x=>!x.ext).sort((a,b)=>a.id.localeCompare(b.id,undefined,{numeric:true})).map(x=>`<option value="${x.id}"${x.id===target?" selected":""}>${esc(x.id+" · "+x.t)}</option>`).join("")}</select></div>
+    </div>
+    <div class="quick">Popular goals: ${quick.map(chip).join("")}</div>
+    <div class="card">
+      <p class="summary">To take <b>${target}</b> ${esc(n.t)}, you need ${before.length} subject${before.length===1?"":"s"} first. The earliest you could take it is ${sem[target]%2?"spring":"fall"} of year ${Math.floor(sem[target]/2)+1}.</p>
+      ${years(sem,roleOf)}
+    </div>
+    ${decisions.length?`<div class="card"><h3>Choices along the way</h3><ul class="choices">${decisions.join("")}</ul></div>`:""}`;
+  highlight=S; showing=`Highlighted: the road to ${target}`;
+}
+
+function viewExplore(){
+  const f=FIELDS[exploreField];
+  panel.innerHTML=`
+    <p class="lede">The department's roadmaps sort subjects into fields and three stages: Stage 1 for a typical sophomore, Stage 2 after several Stage 1 subjects, Stage 3 often graduate level. Pick a field to light it up on the map, or click any subject.</p>
+    <div class="pickers">
+      <div class="pickrow"><span class="lab">Pure fields</span>${Object.entries(FIELDS).filter(([k,x])=>x.side==="pure").map(([k,x])=>`<button type="button" class="pill" data-field="${k}" aria-pressed="${exploreField===k}">${x.name}</button>`).join("")}</div>
+      <div class="pickrow"><span class="lab">Applied fields</span>${Object.entries(FIELDS).filter(([k,x])=>x.side==="applied").map(([k,x])=>`<button type="button" class="pill" data-field="${k}" aria-pressed="${exploreField===k}">${x.name}</button>`).join("")}
+        <button type="button" class="pill" data-field="" aria-pressed="${!exploreField}">Show everything</button></div>
+    </div>
+    ${f?`<div class="card"><h3>${f.name}</h3><p style="margin:0 0 12px">${esc(f.b)}</p>
+      ${["Stage 1","Stage 2","Stage 3"].map((l,i)=>`<div style="margin-bottom:10px"><div class="and">${l.toUpperCase()}</div><div class="chips">${f.st[i].filter(x=>M[x]).map(chip).join("")||'<span class="or">No subjects listed</span>'}</div></div>`).join("")}
+      <button type="button" class="primary" data-plan="${exploreField}">Plan a degree in ${f.name}</button></div>`:""}`;
+  highlight=f?new Set(f.st.flat().filter(x=>M[x])):new Set();
+  showing=f?`Highlighted: ${f.name} roadmap`:"Every subject on the map";
+}
+
+function chip(id){return `<button type="button" class="chip" data-open="${id}">${id}</button>`}
+
+// ---------- Map ----------
+const svg=document.getElementById("svg");
+const GAP=106, RY=100, TOP=50, PADX=70, SPAN=2300;
+let POS={}, W=0, H=0, LV=null, sortFor=null, isolate=false;
+// Layers for one subject: each prerequisite subject on its shortest route goes in the earliest row it can,
+// so everything in a row can be taken at the same time and the number of rows is as small as possible.
+function layers(id){return layersOf(new Set([...close([id]).S].filter(x=>M[x])))}
+function layersOf(S){
+  const L={};
+  const lv=x=>{
+    if(x in L) return L[x];
+    const n=M[x]; L[x]=0; let d=0;
+    (n.p||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
+    (n.c||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,Math.min(...v))});
+    if(n.two){const v=[...S].filter(a=>a!==x&&isAdv(a)&&a!=="18.090").map(lv).sort((a,b)=>a-b);if(v.length>=2)d=Math.max(d,v[1]+1)}
+    return L[x]=d;
+  };
+  S.forEach(lv); return L;
+}
+function relayout(){
+  const iso=isolate&&highlight.size?new Set([...highlight].filter(x=>M[x])):null;
+  LV=sortFor?layers(sortFor):iso?layersOf(iso):null;
+  const rows={}; N.forEach(n=>{const r=LV?LV[n.id]:depth(n.id);if(r===undefined)return;(rows[r]=rows[r]||[]).push(n)});
+  const R=Object.keys(rows).map(Number).sort((a,b)=>a-b);
+  const span=LV?Math.max(700,Math.max(...R.map(r=>rows[r].length))*GAP*1.4):SPAN;
+  POS={};
+  R.forEach(r=>{
+    const row=rows[r].sort((a,b)=>a.a-b.a);
+    let xs=row.map(n=>PADX+n.a/100*span);
+    for(let i=1;i<xs.length;i++) xs[i]=Math.max(xs[i],xs[i-1]+GAP);
+    const lim=PADX+span; if(xs[xs.length-1]>lim){xs[xs.length-1]=Math.max(lim,PADX+(xs.length-1)*GAP);for(let i=xs.length-2;i>=0;i--) xs[i]=Math.min(xs[i],xs[i+1]-GAP)}
+    const shift=Math.max(0,PADX-xs[0]); xs=xs.map(x=>x+shift);
+    row.forEach((n,i)=>POS[n.id]=[xs[i],TOP+r*RY]);
+  });
+  W=Math.max(...Object.values(POS).map(p=>p[0]))+PADX; H=TOP+R[R.length-1]*RY+110;
+}
+relayout();
+function fitZoom(){zoom=LV?Math.min(1,Math.max(0.3,(document.getElementById("mapscroll").clientWidth-4)/W)):0.8}
+function sortMap(id){sortFor=id; relayout(); fitZoom(); drawMap()}
+function applyZoom(){svg.style.width=Math.round(W*zoom)+"px"; svg.style.height=Math.round(H*zoom)+"px"}
+function drawMap(){
+  const H1=highlight, any=H1.size>0;
+  let e="",g="";
+  N.forEach(n=>{[[n.p,false],[n.c,true]].forEach(([gs,co])=>(gs||[]).forEach(gr=>gr.forEach(a=>{
+    if(!POS[a]||!POS[n.id]) return;
+    if(LV&&(co?LV[a]>LV[n.id]:LV[a]>=LV[n.id])) return;
+    const [x1,y1]=POS[a],[x2,y2]=POS[n.id],my=(y1+y2)/2+11;
+    const on=any&&H1.has(a)&&H1.has(n.id);
+    e+=`<path class="edge${co?" co":""}${on?" on":any?" off":""}" d="M${x1},${y1+22} C${x1},${my} ${x2},${my} ${x2},${y2-22}"/>`;
+  })))});
+  N.forEach(n=>{
+    if(!POS[n.id]) return;
+    const [x,y]=POS[n.id];
+    const cls=["node","lvl-"+lvl(n)]; if(any) cls.push(H1.has(n.id)?"in":"fade"); if(n.id===focus) cls.push("focus");
+    if(cmp) cls.push(cmp.a.has(n.id)?"ma":cmp.b.has(n.id)?"mb":cmp.both.has(n.id)?"mboth":"");
+    g+=`<g class="${cls.join(" ")}" data-open="${n.id}" transform="translate(${x},${y})" tabindex="0" role="button" aria-label="${esc(n.id+" "+n.t)}">
+      <rect class="hit" x="-49" y="-20" width="98" height="42" rx="6"/>
+      <text class="num" y="0" text-anchor="middle">${n.id}</text>
+      <text class="ttl" y="14" text-anchor="middle">${esc(n.s)}</text>
+      ${n.grad?`<text class="gt" x="46" y="-11" text-anchor="end">GRAD</text>`:""}</g>`;
+  });
+  const ay=H-34;
+  const axis=`<text class="axis" x="${PADX-40}" y="${ay}">applied</text><path class="axisl" d="M${PADX+180},${ay-7} H${PADX+60} m8,-4 l-8,4 l8,4"/>
+    <path class="axisl" d="M${W-PADX-250},${ay-7} H${W-PADX-130} m-8,-4 l8,4 l-8,4"/><text class="axis" x="${W-PADX+40}" y="${ay}" text-anchor="end">theoretical</text>`;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  applyZoom();
+  let labs="";
+  if(LV){const cnt={};Object.values(LV).forEach(r=>cnt[r]=(cnt[r]||0)+1);
+    Object.keys(cnt).map(Number).forEach(r=>labs+=`<text class="rowlab" x="12" y="${TOP+r*RY-30}">Step ${r+1}${cnt[r]>1?" · "+cnt[r]+" at the same time":""}</text>`)}
+  svg.innerHTML=`<g>${e}</g><g>${g}</g>${labs}${axis}`;
+  const cand=[focus||(tab==="path"?target:null)].find(x=>x&&!M[x].two), zs=document.getElementById("zsort");
+  zs.setAttribute("aria-pressed",!!sortFor); zs.disabled=!sortFor&&!cand;
+  zs.textContent=sortFor?"Show full map":cand?"Sort prerequisites of "+cand:"Sort prerequisites (pick a subject)";
+  const zi=document.getElementById("ziso"); zi.setAttribute("aria-pressed",isolate); zi.disabled=!isolate&&!any;
+  zi.textContent=isolate?"Show all subjects":"Isolate highlighted";
+  const steps=LV?Math.max(...Object.values(LV))+1:0;
+  document.getElementById("showing").textContent=sortFor
+    ?`Prerequisites of ${sortFor}, sorted: ${Object.keys(LV).length} subjects in ${Math.max(...Object.values(LV))+1} steps. Everything in a row can be taken together; dashed lines mean "at the same time".`
+    :LV?`${showing}, shown on its own: ${Object.keys(LV).length} subjects in ${steps} steps. Everything in a row can be taken together.`
+    :showing+(any?". Faded subjects aren't part of it.":". Lower rows need more prerequisites.");
+  document.getElementById("fullnote").textContent=document.getElementById("showing").textContent+" Press Esc to leave full screen.";
+}
+
+// ---------- Drawer ----------
+const drawer=document.getElementById("drawer");
+function open(id){
+  const n=M[id]; if(!n) return; focus=id;
+  const L={gir:"General Institute Requirement",low:"Intermediate math subject",bridge:"Bridge subject",adv:"Advanced math subject",ext:"Outside Course 18"}[lvl(n)];
+  const need=n.two?"<p>Any two math subjects numbered 18.100 or above.</p>":
+    groups(n).length?groups(n).map((g,i)=>`<div class="chips">${g.map(a=>M[a]?chip(a):`<span class="tag">${a}</span>`).join(' <span class="or">or</span> ')}${i>=(n.p||[]).length?' <span class="or">(take at the same time or before)</span>':""}</div>`).join('<div class="and">AND</div>'):"<p>No formal prerequisites.</p>";
+  const ks=kids(id);
+  const fields=Object.values(FIELDS).flatMap(f=>f.st.map((s,i)=>s.includes(id)?`${f.name} · Stage ${i+1}`:null)).filter(Boolean);
+  const counts=[];
+  CORE26.forEach(c=>{if(c.o.includes(id)) counts.push("Core: "+c.label)});
+  if(MATH.includes(id)) counts.push(isAdv(id)?"Advanced subject":"Elective, not advanced");
+  if(CIMA.includes(id)||id==="18.200"||id==="18.100") counts.push(id==="18.100"?"CI-M if you take P or Q":id==="18.200"?"CI-M (18.200, not 18.200A)":"CI-M");
+  drawer.innerHTML=`<button type="button" class="x" id="dx" aria-label="Close details">✕</button>
+    <div><div class="eyebrow">${L}${n.grad?" · graduate level":""}</div>
+    <h2 style="color:var(--${lvl(n)})">${id}</h2><h3>${esc(n.t)}</h3></div>
+    <p>${esc(n.d||"")}</p>
+    ${n.ext?"":`<div class="chips"><button type="button" class="primary" data-road="${id}">Show the road to ${id}</button>${n.two?"":`<button type="button" data-sort="${id}">Sort its prerequisites on the map</button>`}</div>`}
+    <div><h4>You need first</h4>${need}</div>
+    <div><h4>It opens</h4>${ks.length?`<div class="chips">${ks.map(k=>chip(k.id)).join("")}</div>`:"<p>Nothing else on this map.</p>"}</div>
+    ${counts.length?`<div><h4>Counts toward</h4><div class="chips">${counts.map(t=>`<span class="tag">${t}</span>`).join("")}</div></div>`:""}
+    ${fields.length?`<div><h4>Department roadmaps</h4><div class="chips">${fields.map(t=>`<span class="tag">${t}</span>`).join("")}</div></div>`:""}
+    <div><h4>Study it</h4>${(RES[id]||[]).length?`<ul class="res">${RES[id].map(r=>r[0]==="b"?`<li><span class="rk">Textbook</span><span>${esc(r[1])}</span></li>`:`<li><span class="rk">${r[0]==="o"?"MIT OCW":"Web"}${r[3]?" · "+r[3]:""}</span><a href="${resUrl(r)}" target="_blank" rel="noopener">${esc(r[2])}</a></li>`).join("")}</ul>`:`<p>MIT hasn't published this subject on OpenCourseWare.${CIMA.includes(id)?" Seminar topics change every year, so there is no fixed course to follow.":""}</p>`}
+      <p class="or" style="margin-top:8px">Official description and current schedule: <a href="${catUrl(id)}" target="_blank" rel="noopener">MIT Catalog, Course ${id.split(".")[0]}</a></p></div>`;
+  drawer.hidden=false; drawMap();
+  document.getElementById("dx").focus({preventScroll:true});
+}
+function closeDrawer(){drawer.hidden=true;focus=null;drawMap()}
+
+// ---------- Render & events ----------
+function render(){
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
+  cmp=null;
+  ({plan:viewPlan,path:viewPath,compare:viewCompare,explore:viewExplore})[tab]();
+  if(isolate&&!sortFor){const w=W;relayout();if(W!==w)fitZoom()}
+  drawMap(); persist();
+}
+document.querySelector(".tabs").addEventListener("click",e=>{const t=e.target.closest(".tab");if(t){tab=t.dataset.tab;if(sortFor){sortFor=null;relayout();zoom=0.8}render()}});
+document.getElementById("ziso").addEventListener("click",()=>{isolate=!isolate;sortFor=null;relayout();fitZoom();drawMap()});
+const mapEl=document.querySelector(".map"), ms=document.getElementById("mapscroll");
+function setFull(on){mapEl.classList.toggle("full",on);document.body.classList.toggle("mapfull",on);document.getElementById("zfull").setAttribute("aria-pressed",on);document.getElementById("zfull").textContent=on?"Exit full screen":"Full screen"}
+document.getElementById("zfull").addEventListener("click",()=>setFull(!mapEl.classList.contains("full")));
+// Mouse wheel over the map zooms around the cursor instead of scrolling the page.
+ms.addEventListener("wheel",e=>{
+  e.preventDefault();
+  const r=ms.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
+  const cx=(ms.scrollLeft+px)/zoom, cy=(ms.scrollTop+py)/zoom;
+  const dy=e.deltaMode===1?e.deltaY*33:e.deltaY;
+  zoom=Math.min(2,Math.max(0.3,zoom*Math.exp(-dy*0.0015))); applyZoom();
+  ms.scrollLeft=cx*zoom-px; ms.scrollTop=cy*zoom-py;
+},{passive:false});
+document.getElementById("zsort").addEventListener("click",()=>sortMap(sortFor?null:(focus||(tab==="path"?target:null))));
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-track]"); if(t){trackKey=t.dataset.track;render();return}
+  const f=e.target.closest("[data-field]"); if(f){exploreField=f.dataset.field;render();return}
+  const p=e.target.closest("[data-plan]"); if(p){trackKey=p.dataset.plan;tab="plan";render();window.scrollTo({top:0,behavior:"smooth"});return}
+  const r=e.target.closest("[data-road]"); if(r){target=r.dataset.road;tab="path";closeDrawer();render();window.scrollTo({top:0,behavior:"smooth"});return}
+  const so=e.target.closest("[data-sort]"); if(so){sortMap(so.dataset.sort);document.getElementById("mapscroll").scrollIntoView({behavior:"smooth",block:"nearest"});return}
+  const o=e.target.closest("[data-open]"); if(o){open(o.dataset.open);return}
+  if(e.target.id==="dx") closeDrawer();
+  if(e.target.id==="swap"){[cmpA,cmpB]=[cmpB,cmpA];render()}
+});
+document.addEventListener("change",e=>{
+  if(e.target.dataset.slot!==undefined){(over[trackKey]=over[trackKey]||{})[e.target.dataset.slot]=e.target.value;render();document.getElementById("slot"+e.target.dataset.slot)?.focus()}
+  if(e.target.id==="target"){target=e.target.value;render();document.getElementById("target").focus()}
+  if(e.target.id==="cmpA"||e.target.id==="cmpB"){if(e.target.id==="cmpA")cmpA=e.target.value;else cmpB=e.target.value;const f=e.target.id;render();document.getElementById(f).focus()}
+});
+svg.addEventListener("keydown",e=>{const g=e.target.closest(".node");if(g&&(e.key==="Enter"||e.key===" ")){e.preventDefault();open(g.dataset.open)}});
+document.addEventListener("keydown",e=>{if(e.key!=="Escape")return;if(!drawer.hidden)closeDrawer();else if(mapEl.classList.contains("full"))setFull(false)});
+const dl=document.getElementById("courselist");
+dl.innerHTML=N.map(n=>`<option value="${n.id} · ${esc(n.t)}"></option>`).join("");
+document.getElementById("find").addEventListener("change",e=>{
+  const v=e.target.value.trim().toLowerCase(); if(!v) return;
+  const hit=N.find(n=>v.startsWith(n.id.toLowerCase()+" "))||N.find(n=>n.id.toLowerCase()===v)||N.find(n=>(n.id+" "+n.t+" "+n.s).toLowerCase().includes(v));
+  if(hit){open(hit.id);e.target.value=""}
+});
+document.getElementById("zin").addEventListener("click",()=>{zoom=Math.min(2,zoom+0.1);applyZoom()});
+document.getElementById("zout").addEventListener("click",()=>{zoom=Math.max(0.3,zoom-0.1);applyZoom()});
+document.getElementById("zfit").addEventListener("click",()=>{zoom=Math.max(0.3,(document.getElementById("mapscroll").clientWidth-4)/W);drawMap()});
+render();
+</script>
+</body>
+</html>
