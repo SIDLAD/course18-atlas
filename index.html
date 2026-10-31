@@ -214,7 +214,7 @@ footer{font-size:12.5px;color:var(--muted);max-width:85ch}
       <span><b style="color:var(--bridge)">18.090</b> bridge</span>
       <span><b style="color:var(--adv);font-weight:400">18.1xx+</b> advanced</span>
       <span><b style="color:var(--ext);font-style:italic;font-weight:400">6.1210</b> outside math</span>
-      <span>dashed line: take at the same time</span>
+      <span>dashed line: can also be taken in the same term</span>
       <span>dotted line: recommended background, not required</span>
     </div>
   </div>
@@ -524,7 +524,7 @@ function depth(id){
   let d=0;
   // Every listed prerequisite, including each OR alternative, sits on a higher row, so no line runs sideways or up.
   [...(n.p||[]),...(n.rec||[])].forEach(g=>g.filter(a=>M[a]).forEach(a=>d=Math.max(d,1+depth(a))));
-  (n.c||[]).forEach(g=>g.filter(a=>M[a]).forEach(a=>d=Math.max(d,depth(a))));
+  (n.c||[]).forEach(g=>g.filter(a=>M[a]).forEach(a=>d=Math.max(d,1+depth(a))));
   if(n.two) d=Math.max(d,3);
   return depMemo[id]=d;
 }
@@ -772,7 +772,7 @@ function layersOf(S){
     if(x in L) return L[x];
     const n=M[x]; L[x]=0; let d=0;
     [...(n.p||[]),...(n.rec||[])].forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
-    (n.c||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,Math.min(...v))});
+    (n.c||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
     if(n.two){const v=[...S].filter(a=>a!==x&&isAdv(a)&&a!=="18.090").map(lv).sort((a,b)=>a-b);if(v.length>=2)d=Math.max(d,v[1]+1)}
     return L[x]=d;
   };
@@ -815,10 +815,11 @@ function drawMap(){
   let e="",g="";
   N.forEach(n=>{[[n.p,false],[n.c,true],[n.rec,false,true]].forEach(([gs,co,rc])=>(gs||[]).forEach(gr=>gr.forEach(a=>{
     if(!POS[a]||!POS[n.id]) return;
-    if(LV&&(co?LV[a]>LV[n.id]:LV[a]>=LV[n.id])) return;
+    if(LV&&LV[a]>=LV[n.id]) return;
     const [x1,y1]=POS[a],[x2,y2]=POS[n.id],my=(y1+y2)/2+11;
     const on=any&&H1.has(a)&&H1.has(n.id);
-    e+=`<path class="edge${co?" co":""}${rc?" rec":""}${on?" on":any?" off":""}" d="M${x1},${y1+22} C${x1},${my} ${x2},${my} ${x2},${y2-22}"/>`;
+    const cls=`edge${co?" co":""}${rc?" rec":""}${on?" on":any?" off":""}`;
+    e+=`<path class="${cls}" d="M${x1},${y1+22} C${x1},${my} ${x2},${my} ${x2},${y2-22}"/>`;
   })))});
   N.forEach(n=>{
     if(!POS[n.id]) return;
@@ -848,7 +849,7 @@ function drawMap(){
   zi.textContent=isolate?"Show all subjects":"Isolate highlighted";
   const steps=LV?Math.max(...Object.values(LV))+1:0;
   document.getElementById("showing").textContent=sortFor
-    ?`Prerequisites of ${sortFor}, sorted: ${Object.keys(LV).length} subjects in ${Math.max(...Object.values(LV))+1} steps. Everything in a row can be taken together; dashed lines mean "at the same time".`
+    ?`Prerequisites of ${sortFor}, sorted: ${Object.keys(LV).length} subjects in ${Math.max(...Object.values(LV))+1} steps. Everything in a row can be taken together; a dashed line means the two can also share a term.`
     :LV?`${showing}, shown on its own: ${Object.keys(LV).length} subjects in ${steps} steps. Everything in a row can be taken together.`
     :showing+(any?". Faded subjects aren't part of it.":". Lower rows need more prerequisites.");
   const view=[tab,sortFor,isolate,[...highlight].sort().join()].join("|");
