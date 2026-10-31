@@ -113,6 +113,7 @@ button:hover{border-color:var(--muted)}
 .cc .r{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:2px}
 .cc.role-prereq{border-style:dashed}
 .cc.role-target{border-color:var(--hl);border-width:2px}
+.cc.role-rec{border-style:dashed} .cc.role-rec .r{font-style:italic}
 .cc.lvl-gir .n{color:var(--gir)} .cc.lvl-low .n{color:var(--low);font-weight:700} .cc.lvl-bridge .n{color:var(--bridge);font-weight:700} .cc.lvl-adv .n{color:var(--adv)} .cc.lvl-ext .n{color:var(--ext);font-style:italic}
 .empty{font-size:12px;color:var(--muted);opacity:.6}
 .choices{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14px}
@@ -156,6 +157,7 @@ svg{display:block}
 .node.lvl-bridge .num{fill:var(--bridge);font-weight:700} .node.lvl-adv .num{fill:var(--adv)} .node.lvl-ext .num{fill:var(--ext);font-style:italic}
 .node.in .hit{stroke:var(--hl);stroke-width:1.8}
 .node.focus .hit{stroke:var(--hl);stroke-width:3}
+.node.in.recn .hit{stroke-dasharray:4 3}
 .node.fade{opacity:.22}
 .axis{font-family:var(--f-display);font-size:22px;fill:var(--low)}
 .axisl{stroke:var(--fg);stroke-width:1;fill:none}
@@ -481,11 +483,11 @@ function naive(id){
   });
   return naiveMemo[id]=s;
 }
-function close(seed){
+function close(seed,withRec){
   const S=new Set(seed), added=[], stack=[...seed];
   while(stack.length){
     const n=M[stack.pop()]; if(!n) continue;
-    groups(n).forEach(g=>{
+    [...groups(n),...(withRec&&n.rec||[])].forEach(g=>{
       if(g.some(a=>S.has(a))) return;
       let best=null,bc=1e9;
       g.filter(a=>M[a]).forEach(a=>{const c=[...naive(a)].filter(x=>!S.has(x)).length;if(c<bc){bc=c;best=a}});
@@ -504,7 +506,7 @@ function schedule(S){
   while(ids.some(id=>!(id in sem))&&guard++<200){
     ids.filter(id=>!(id in sem)).sort((a,b)=>depth(a)-depth(b)).forEach(id=>{
       const n=M[id]; let e=0, ok=true;
-      (n.p||[]).forEach(g=>{const h=g.filter(a=>S.has(a));if(!h.length)return;const d=h.filter(a=>a in sem);if(!d.length){ok=false;return}e=Math.max(e,Math.min(...d.map(a=>sem[a]))+1)});
+      [...(n.p||[]),...(n.rec||[])].forEach(g=>{const h=g.filter(a=>S.has(a));if(!h.length)return;const d=h.filter(a=>a in sem);if(!d.length){ok=false;return}e=Math.max(e,Math.min(...d.map(a=>sem[a]))+1)});
       (n.c||[]).forEach(g=>{const h=g.filter(a=>S.has(a));if(!h.length)return;const d=h.filter(a=>a in sem);if(!d.length){ok=false;return}e=Math.max(e,Math.min(...d.map(a=>sem[a])))});
       if(n.two){const adv=ids.filter(x=>x!==id&&isAdv(x)&&x!=="18.090"&&x in sem).map(x=>sem[x]).sort((a,b)=>a-b);if(adv.length<2){ok=adv.length>=ids.filter(x=>x!==id&&isAdv(x)&&x!=="18.090").length;if(!ok)return;}else e=Math.max(e,adv[1]+1)}
       if(!ok) return;
@@ -583,6 +585,7 @@ function checks(track,picks,S){
 }
 
 // ---------- State ----------
+let recSet=new Set();
 let tab="plan", trackKey="algebra", over={}, target="18.721", exploreField="", focus=null, zoom=0.8, cmpA="algebra", cmpB="cs", cmp=null;
 try{const s=JSON.parse(localStorage.getItem("c18atlas")||"{}");if(s.trackKey&&(FIELDS[s.trackKey]||["pure","applied","c18"].includes(s.trackKey)))trackKey=s.trackKey;if(s.target&&M[s.target])target=s.target;}catch(e){}
 const h=(location.hash||"").slice(1); if(["plan","path","compare","explore"].includes(h)) tab=h;
@@ -711,16 +714,17 @@ function viewPlan(){
 }
 
 function viewPath(){
-  const {S}=close([target]), sem=schedule(S);
+  const req=close([target]).S, S=close([target],true).S, sem=schedule(S);
   const n=M[target];
-  const before=[...S].filter(x=>x!==target);
+  const before=[...req].filter(x=>x!==target), extra=[...S].filter(x=>!req.has(x)&&!["18.01","18.02"].includes(x));
+  recSet=new Set(extra);
   const decisions=[];
   [...S].forEach(id=>groups(M[id]).forEach(g=>{
     const alts=g.filter(a=>M[a]); if(alts.length<2) return;
     const chosen=alts.find(a=>S.has(a));
     decisions.push(`<li>For ${chip(id)}: ${alts.map(a=>a===chosen?`<b>${chip(a)}</b>`:chip(a)).join(' <span class="or">or</span> ')}. The bold one gives the shortest route.</li>`);
   }));
-  const roleOf=id=>id===target?["target","goal"]:["18.01","18.02"].includes(id)?["gir","GIR"]:["prereq",""];
+  const roleOf=id=>id===target?["target","goal"]:["18.01","18.02"].includes(id)?["gir","GIR"]:recSet.has(id)?["rec","recommended"]:["prereq",""];
   const quick=["18.702","18.901","18.721","18.675","18.410J","18.965","18.650","18.384"];
   panel.innerHTML=`
     <p class="lede">Pick a subject and see the shortest set of subjects you'd need to take before it, laid out term by term.</p>
@@ -730,11 +734,11 @@ function viewPath(){
     </div>
     <div class="quick">Popular goals: ${quick.map(chip).join("")}</div>
     <div class="card">
-      <p class="summary">To take <b>${target}</b> ${esc(n.t)}, you need ${before.length} subject${before.length===1?"":"s"} first. The earliest you could take it is ${sem[target]%2?"spring":"fall"} of year ${Math.floor(sem[target]/2)+1}.</p>
+      <p class="summary">${before.length||!n.rec?`To take <b>${target}</b> ${esc(n.t)}, you need ${before.length} subject${before.length===1?"":"s"} first.`:`Officially, <b>${target}</b> ${esc(n.t)} needs only the instructor's permission.`}${extra.length?` The road also shows ${extra.length} recommended subject${extra.length===1?"":"s"} (dashed): not required, but the background the course assumes.`:""} ${extra.length?"Following that path, the earliest":"The earliest"} you could take it is ${sem[target]%2?"spring":"fall"} of year ${Math.floor(sem[target]/2)+1}.</p>
       ${years(sem,roleOf)}
     </div>
     ${decisions.length?`<div class="card"><h3>Choices along the way</h3><ul class="choices">${decisions.join("")}</ul></div>`:""}`;
-  highlight=S; showing=`Highlighted: the road to ${target}`;
+  highlight=S; showing=`Highlighted: the road to ${target}${extra.length?`, including ${extra.length} recommended (dashed)`:""}`;
 }
 
 function viewExplore(){
@@ -767,7 +771,7 @@ function layersOf(S){
   const lv=x=>{
     if(x in L) return L[x];
     const n=M[x]; L[x]=0; let d=0;
-    (n.p||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
+    [...(n.p||[]),...(n.rec||[])].forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,1+Math.min(...v))});
     (n.c||[]).forEach(g=>{const v=g.filter(a=>S.has(a)).map(lv);if(v.length)d=Math.max(d,Math.min(...v))});
     if(n.two){const v=[...S].filter(a=>a!==x&&isAdv(a)&&a!=="18.090").map(lv).sort((a,b)=>a-b);if(v.length>=2)d=Math.max(d,v[1]+1)}
     return L[x]=d;
@@ -820,6 +824,7 @@ function drawMap(){
     if(!POS[n.id]) return;
     const [x,y]=POS[n.id];
     const cls=["node","lvl-"+lvl(n)]; if(any) cls.push(H1.has(n.id)?"in":"fade"); if(n.id===focus) cls.push("focus");
+    if(recSet.has(n.id)) cls.push("recn");
     if(cmp) cls.push(cmp.a.has(n.id)?"ma":cmp.b.has(n.id)?"mb":cmp.both.has(n.id)?"mboth":"");
     g+=`<g class="${cls.join(" ")}" data-open="${n.id}" transform="translate(${x},${y})" tabindex="0" role="button" aria-label="${esc(n.id+" "+n.t)}">
       <rect class="hit" x="-49" y="-20" width="98" height="42" rx="6"/>
@@ -885,7 +890,7 @@ function closeDrawer(){drawer.hidden=true;focus=null;drawMap()}
 // ---------- Render & events ----------
 function render(){
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
-  cmp=null; degreeIndex();
+  cmp=null; recSet=new Set(); degreeIndex();
   ({plan:viewPlan,path:viewPath,compare:viewCompare,explore:viewExplore})[tab]();
   if(isolate&&!sortFor){const w=W;relayout();if(W!==w)fitZoom()}
   drawMap(); persist();
