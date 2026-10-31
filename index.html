@@ -27,6 +27,8 @@
   --hl:#ffb02e; --ok:#58c780; --warn:#ffb02e; color-scheme:dark}
 
 *{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5}
 .wrap{max-width:1360px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
 a{color:var(--bridge)}
@@ -46,6 +48,7 @@ button:hover{border-color:var(--muted)}
 .tab{border:none;border-bottom:3px solid transparent;border-radius:0;background:none;padding:10px 14px 9px;font-weight:500;color:var(--muted);white-space:nowrap}
 .tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--fg)}
 .tab small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+@media (max-width:600px){.tabs{display:grid;grid-template-columns:1fr 1fr;overflow:visible}.tab{white-space:normal;text-align:left;padding:8px 6px 7px}.tab small{font-size:11.5px}}
 .panel{display:flex;flex-direction:column;gap:18px}
 .lede{margin:0;color:var(--muted);max-width:75ch}
 
@@ -85,6 +88,13 @@ button:hover{border-color:var(--muted)}
 .ccl{font-size:12px;font-weight:500}
 .ccm{border:none;background:none;padding:0;font-size:12px;color:var(--muted);text-decoration:underline}
 .ccn{font-size:11.5px;color:var(--muted)}
+.ccd{display:flex;flex-wrap:wrap;gap:3px;align-items:baseline;width:100%;font-size:11px;color:var(--muted);padding-top:3px;border-top:1px dashed var(--line);margin-top:2px}
+.dg{border:1px solid var(--line);background:none;border-radius:999px;padding:0 7px;font-size:11px;line-height:1.6;color:inherit;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.dg:hover{border-color:var(--hl);color:var(--hl)}
+.deglist{display:flex;flex-direction:column;gap:4px;margin:0;padding:0;list-style:none}
+.deglist button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;font-size:13.5px;padding:5px 9px}
+.deglist .rl{color:var(--muted);font-size:12px}
+.mapscroll{cursor:grab} .mapscroll.dragging{cursor:grabbing;user-select:none}
 .cmp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
 @media (max-width:900px){.cmp{grid-template-columns:minmax(0,1fr)}}
 .cmpcol{border-top:4px solid var(--k)}
@@ -579,10 +589,28 @@ let highlight=new Set(), showing="";
 
 // ---------- Views ----------
 const panel=document.getElementById("panel");
+// Which sample degree plans use each subject, and in what role. Rebuilt on every render so swapped picks show up.
+let DEG={};
+function degreeIndex(){
+  DEG={};
+  TRACKS.forEach(([k])=>{
+    const P=planFor(k), name=FIELDS[k]?FIELDS[k].name:{pure:"Pure (pre-2026)",applied:"Applied (pre-2026)",c18:"18C (pre-2026)"}[k];
+    P.S.forEach(id=>{const i=P.picks.indexOf(id);
+      (DEG[id]=DEG[id]||[]).push({k,name,role:i<0?"needed first":P.track.slots[i].role==="core"?P.track.slots[i].label:"elective"})});
+  });
+}
+const degBtn=d=>`<button type="button" class="dg" data-plan="${d.k}" title="${esc(d.name)}: ${esc(d.role)}. Open this degree's plan">${esc(d.name)}</button>`;
+function degLine(id){
+  const ds=DEG[id]||[];
+  if(ds.length===TRACKS.length) return `<div class="ccd">In every degree</div>`;
+  if(!ds.length) return `<div class="ccd">In no sample degree plan</div>`;
+  const shown=ds.slice(0,3);
+  return `<div class="ccd">In ${ds.length} degree${ds.length>1?"s":""}: ${shown.map(degBtn).join("")}${ds.length>3?`<button type="button" class="ccm" data-open="${id}">+${ds.length-3} more</button>`:""}</div>`;
+}
 function card(id,role,roleLabel){
   const n=M[id], p=primary(id), more=(RES[id]||[]).length;
   return `<div class="cc lvl-${lvl(n)} role-${role}"><button type="button" class="ccb" data-open="${id}"><span class="n">${id}</span><span class="s">${esc(n.s)}</span>${roleLabel?`<span class="r">${roleLabel}</span>`:""}</button>
-    ${p?`<a class="ccl" href="${resUrl(p)}" target="_blank" rel="noopener" title="${esc(p[2])}">Open course ↗</a>${more>1?`<button type="button" class="ccm" data-open="${id}">+${more-1} more</button>`:""}`:`<span class="ccn">No free course online</span>`}</div>`;
+    ${p?`<a class="ccl" href="${resUrl(p)}" target="_blank" rel="noopener" title="${esc(p[2])}">Open course ↗</a>${more>1?`<button type="button" class="ccm" data-open="${id}">+${more-1} more</button>`:""}`:`<span class="ccn">No free course online</span>`}${degLine(id)}</div>`;
 }
 function years(sem,roleOf){
   const max=Math.max(7,...Object.values(sem)), Y=Math.ceil((max+1)/2), out=[];
@@ -828,6 +856,7 @@ function open(id){
     ${n.ext?"":`<div class="chips"><button type="button" class="primary" data-road="${id}">Show the road to ${id}</button>${n.two?"":`<button type="button" data-sort="${id}">Sort its prerequisites on the map</button>`}</div>`}
     <div><h4>You need first</h4>${need}</div>
     <div><h4>It opens</h4>${ks.length?`<div class="chips">${ks.map(k=>chip(k.id)).join("")}</div>`:"<p>Nothing else on this map.</p>"}</div>
+    <div><h4>Degrees that use it</h4>${(DEG[id]||[]).length?`<p class="or" style="margin-bottom:6px">In the sample plan for ${DEG[id].length} of ${TRACKS.length} degrees. Click one to open its plan.</p><ul class="deglist">${DEG[id].map(d=>`<li><button type="button" data-plan="${d.k}"><span>${esc(d.name)}</span><span class="rl">${esc(d.role)}</span></button></li>`).join("")}</ul>`:"<p>No sample degree plan uses it. You can still swap it into a plan as an elective if it counts.</p>"}</div>
     ${counts.length?`<div><h4>Counts toward</h4><div class="chips">${counts.map(t=>`<span class="tag">${t}</span>`).join("")}</div></div>`:""}
     ${fields.length?`<div><h4>Department roadmaps</h4><div class="chips">${fields.map(t=>`<span class="tag">${t}</span>`).join("")}</div></div>`:""}
     <div><h4>Study it</h4>${(RES[id]||[]).length?`<ul class="res">${RES[id].map(r=>r[0]==="b"?`<li><span class="rk">Textbook</span><span>${esc(r[1])}</span></li>`:`<li><span class="rk">${r[0]==="o"?"MIT OCW":"Web"}${r[3]?" · "+r[3]:""}</span><a href="${resUrl(r)}" target="_blank" rel="noopener">${esc(r[2])}</a></li>`).join("")}</ul>`:`<p>MIT hasn't published this subject on OpenCourseWare.${CIMA.includes(id)?" Seminar topics change every year, so there is no fixed course to follow.":""}</p>`}
@@ -840,7 +869,7 @@ function closeDrawer(){drawer.hidden=true;focus=null;drawMap()}
 // ---------- Render & events ----------
 function render(){
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===tab));
-  cmp=null;
+  cmp=null; degreeIndex();
   ({plan:viewPlan,path:viewPath,compare:viewCompare,explore:viewExplore})[tab]();
   if(isolate&&!sortFor){const w=W;relayout();if(W!==w)fitZoom()}
   drawMap(); persist();
@@ -850,6 +879,16 @@ document.getElementById("ziso").addEventListener("click",()=>{isolate=!isolate;s
 const mapEl=document.querySelector(".map"), ms=document.getElementById("mapscroll");
 function setFull(on){mapEl.classList.toggle("full",on);document.body.classList.toggle("mapfull",on);document.getElementById("zfull").setAttribute("aria-pressed",on);document.getElementById("zfull").textContent=on?"Exit full screen":"Full screen"}
 document.getElementById("zfull").addEventListener("click",()=>setFull(!mapEl.classList.contains("full")));
+// Hold the left mouse button and drag to move around the map; a drag doesn't count as a click on a subject.
+let drag=null;
+ms.addEventListener("mousedown",e=>{if(e.button!==0)return;drag={x:e.clientX,y:e.clientY,l:ms.scrollLeft,t:ms.scrollTop,moved:false};e.preventDefault()});
+window.addEventListener("mousemove",e=>{
+  if(!drag)return;
+  const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(!drag.moved&&Math.hypot(dx,dy)>4){drag.moved=true;ms.classList.add("dragging")}
+  if(drag.moved){ms.scrollLeft=drag.l-dx;ms.scrollTop=drag.t-dy}
+});
+window.addEventListener("mouseup",()=>{if(!drag)return;if(drag.moved){ms.classList.remove("dragging");const stop=ev=>{ev.stopPropagation();ev.preventDefault()};window.addEventListener("click",stop,{capture:true,once:true});setTimeout(()=>window.removeEventListener("click",stop,{capture:true}),0)}drag=null});
 // Mouse wheel over the map zooms around the cursor instead of scrolling the page.
 ms.addEventListener("wheel",e=>{
   e.preventDefault();
@@ -863,7 +902,7 @@ document.getElementById("zsort").addEventListener("click",()=>sortMap(sortFor?nu
 document.addEventListener("click",e=>{
   const t=e.target.closest("[data-track]"); if(t){trackKey=t.dataset.track;render();return}
   const f=e.target.closest("[data-field]"); if(f){exploreField=f.dataset.field;render();return}
-  const p=e.target.closest("[data-plan]"); if(p){trackKey=p.dataset.plan;tab="plan";render();window.scrollTo({top:0,behavior:"smooth"});return}
+  const p=e.target.closest("[data-plan]"); if(p){if(!drawer.hidden){drawer.hidden=true;focus=null}if(mapEl.classList.contains("full"))setFull(false);trackKey=p.dataset.plan;tab="plan";render();window.scrollTo({top:0,behavior:"smooth"});return}
   const r=e.target.closest("[data-road]"); if(r){target=r.dataset.road;tab="path";closeDrawer();render();window.scrollTo({top:0,behavior:"smooth"});return}
   const so=e.target.closest("[data-sort]"); if(so){sortMap(so.dataset.sort);document.getElementById("mapscroll").scrollIntoView({behavior:"smooth",block:"nearest"});return}
   const o=e.target.closest("[data-open]"); if(o){open(o.dataset.open);return}
